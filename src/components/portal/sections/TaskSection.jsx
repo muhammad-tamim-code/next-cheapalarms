@@ -7,6 +7,8 @@ export const TaskSection = memo(function TaskSection({ tasks, taskState, setTask
     setTaskState((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const list = tasks ?? [];
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-4">
@@ -14,11 +16,11 @@ export const TaskSection = memo(function TaskSection({ tasks, taskState, setTask
           <CardTitle>Checklist</CardTitle>
           <CardDescription>Tick items off as you go. We'll remind you about anything pending.</CardDescription>
         </div>
-        <Badge variant="outline">{tasks.length} items</Badge>
+        <Badge variant="outline">{list.length} items</Badge>
       </CardHeader>
       <CardContent className="space-y-3 text-sm text-muted-foreground">
-        {tasks.length ? (
-          tasks.map((task) => (
+        {list.length ? (
+          list.map((task) => (
             <button
               key={task.id}
               type="button"
@@ -41,7 +43,7 @@ export const TaskSection = memo(function TaskSection({ tasks, taskState, setTask
             </button>
           ))
         ) : (
-          <p>Nothing outstanding right now.</p>
+          <p>{tasks === null ? "No tasks." : "Nothing outstanding right now."}</p>
         )}
       </CardContent>
     </Card>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Badge } from "../../ui/badge";
+import { apiFetch } from "../../../lib/api/apiFetch";
 
 export default function InstallationStatus({ estimateId }) {
   const [loading, setLoading] = useState(true);
@@ -31,14 +32,15 @@ export default function InstallationStatus({ estimateId }) {
       
       try {
         // First, get the job UUID from estimate ID (this reads from WordPress meta, not ServiceM8)
-        const linkRes = await fetch(`/api/servicem8/jobs/link?estimateId=${encodeURIComponent(estimateId)}`);
-        if (!linkRes.ok) {
-          // No job linked yet - this is fine
+        let linkData;
+        try {
+          linkData = await apiFetch(`/api/servicem8/jobs/link?estimateId=${encodeURIComponent(estimateId)}`);
+        } catch {
+          // No job linked yet or API error - this is fine
           setLoading(false);
           return;
         }
 
-        const linkData = await linkRes.json();
         if (!linkData.ok || !linkData.link?.jobUuid) {
           setLoading(false);
           return;
@@ -47,20 +49,19 @@ export default function InstallationStatus({ estimateId }) {
         const jobUuid = linkData.link.jobUuid;
 
         // Fetch job details (only if cache expired or forcing refresh)
-        const jobRes = await fetch(`/api/servicem8/jobs/${jobUuid}`);
-        if (!jobRes.ok) throw new Error("Failed to fetch job");
-        const jobData = await jobRes.json();
+        const jobData = await apiFetch(`/api/servicem8/jobs/${jobUuid}`);
         if (jobData.ok) {
           setJob(jobData.job);
         }
 
         // Fetch job activities (scheduling)
-        const activitiesRes = await fetch(`/api/servicem8/jobs/${jobUuid}/activities`);
-        if (activitiesRes.ok) {
-          const activitiesData = await activitiesRes.json();
+        try {
+          const activitiesData = await apiFetch(`/api/servicem8/jobs/${jobUuid}/activities`);
           if (activitiesData.ok && activitiesData.activities) {
             setActivities(Array.isArray(activitiesData.activities) ? activitiesData.activities : [activitiesData.activities]);
           }
+        } catch {
+          // Activities are optional - ignore errors
         }
 
         lastFetchRef.current = now;
@@ -83,59 +84,38 @@ export default function InstallationStatus({ estimateId }) {
     };
   }, [estimateId]);
 
-  // Separate effect for polling active jobs
+  // Separate effect for polling active jobs (recursive: reschedule after each fetch)
   useEffect(() => {
-    if (!job || !job.status) return;
+    if (!job?.status || job.status === 'Completed' || job.status === 'Cancelled') return;
 
-    // Set up polling for active jobs (only if job exists and is not completed)
-    const isActive = !['Completed', 'Cancelled'].includes(job.status);
-    
-    if (isActive) {
-      if (cacheTimeoutRef.current) {
-        clearTimeout(cacheTimeoutRef.current);
+    let timer;
+    const poll = async () => {
+      try {
+        const linkData = await apiFetch(`/api/servicem8/jobs/link?estimateId=${encodeURIComponent(estimateId)}`);
+        if (!linkData.ok || !linkData.link?.jobUuid) return;
+
+        const jobUuid = linkData.link.jobUuid;
+        const jobData = await apiFetch(`/api/servicem8/jobs/${jobUuid}`);
+        if (jobData.ok) {
+          setJob(jobData.job);
+          lastFetchRef.current = Date.now();
+        }
+      } catch (err) {
+        // ignore
       }
-
-      cacheTimeoutRef.current = setTimeout(() => {
-        // Re-fetch job status
-        const fetchJobStatus = async () => {
-          try {
-            const linkRes = await fetch(`/api/servicem8/jobs/link?estimateId=${encodeURIComponent(estimateId)}`);
-            if (!linkRes.ok) return;
-            const linkData = await linkRes.json();
-            if (!linkData.ok || !linkData.link?.jobUuid) return;
-
-            const jobUuid = linkData.link.jobUuid;
-            const jobRes = await fetch(`/api/servicem8/jobs/${jobUuid}`);
-            if (jobRes.ok) {
-              const jobData = await jobRes.json();
-              if (jobData.ok) {
-                setJob(jobData.job);
-                lastFetchRef.current = Date.now();
-              }
-            }
-          } catch (err) {
-            console.error("Error polling job status:", err);
-          }
-        };
-
-        fetchJobStatus();
-      }, POLL_INTERVAL);
-    }
-
-    return () => {
-      if (cacheTimeoutRef.current) {
-        clearTimeout(cacheTimeoutRef.current);
-      }
+      timer = setTimeout(poll, POLL_INTERVAL);
     };
+    timer = setTimeout(poll, POLL_INTERVAL);
+    return () => clearTimeout(timer);
   }, [job?.status, estimateId]);
 
   const getStatusColor = (status) => {
     const colors = {
-      "In Progress": "bg-blue-500/10 text-blue-600 border-blue-500/20",
-      "Scheduled": "bg-purple-500/10 text-purple-600 border-purple-500/20",
-      "Quote": "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
-      "Completed": "bg-green-500/10 text-green-600 border-green-500/20",
-      "Cancelled": "bg-red-500/10 text-red-600 border-red-500/20",
+      "In Progress": "bg-info/10 text-info border-info/20",
+      "Scheduled": "bg-secondary/10 text-secondary border-secondary/20",
+      "Quote": "bg-warning/10 text-warning border-warning/20",
+      "Completed": "bg-success/10 text-success border-success/20",
+      "Cancelled": "bg-error/10 text-error border-error/20",
     };
     return colors[status] || colors.Quote;
   };

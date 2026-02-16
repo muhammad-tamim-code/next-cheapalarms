@@ -2,18 +2,17 @@ import Head from "next/head";
 import AdminLayout from "../../../components/admin/layout/AdminLayout";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
 import { useState, useCallback } from "react";
 import { requireAdmin } from "../../../lib/auth/requireAdmin";
 import { useXeroStatus, useXeroAuthorize, useXeroDisconnect } from "../../../lib/react-query/hooks/admin";
 import { Spinner } from "../../../components/ui/spinner";
-import { CheckCircle2, XCircle, ExternalLink } from "lucide-react";
+import { CheckCircle2, XCircle, ExternalLink, ShieldCheck } from "lucide-react";
+import { apiFetch } from "../../../lib/api/apiFetch";
 
 export default function AdminIntegrations({ authContext }) {
-  const [apiKey, setApiKey] = useState("");
-  const [locationId, setLocationId] = useState("");
   const [testing, setTesting] = useState(false);
-  const [result, setResult] = useState(null);
+  const [ghlResult, setGhlResult] = useState(null);
+  const [xeroResult, setXeroResult] = useState(null);
 
   // Xero integration hooks
   const { data: xeroStatus, isLoading: xeroStatusLoading, refetch: refetchXeroStatus } = useXeroStatus();
@@ -25,10 +24,20 @@ export default function AdminIntegrations({ authContext }) {
   const testConnection = useCallback(async () => {
     try {
       setTesting(true);
-      setResult(null);
-      // Mock result
-      await new Promise((r) => setTimeout(r, 600));
-      setResult({ ok: true, message: "GHL connected" });
+      setGhlResult(null);
+      const data = await apiFetch("/api/admin/health");
+      const ghl = data?.checks?.ghl_api;
+      if (ghl?.status === "ok") {
+        setGhlResult({ ok: true, message: ghl.message || "GHL connected successfully" });
+      } else if (ghl?.status === "degraded") {
+        setGhlResult({ ok: false, message: ghl.message || "GHL connection degraded" });
+      } else if (ghl) {
+        setGhlResult({ ok: false, message: ghl.message || "GHL connection failed" });
+      } else {
+        setGhlResult({ ok: false, message: data?.err || "Unable to check GHL status" });
+      }
+    } catch (err) {
+      setGhlResult({ ok: false, message: err?.message || "Health check request failed" });
     } finally {
       setTesting(false);
     }
@@ -42,7 +51,7 @@ export default function AdminIntegrations({ authContext }) {
       if (result?.error) {
         // Error from React Query
         const errorMessage = result.error.message || "Failed to connect to Xero";
-        setResult({ ok: false, message: errorMessage });
+        setXeroResult({ ok: false, message: errorMessage });
         return;
       }
       
@@ -58,13 +67,13 @@ export default function AdminIntegrations({ authContext }) {
         
         // Provide more helpful message for configuration errors
         if (errorCode === 'xero_not_configured') {
-          setResult({ 
+          setXeroResult({ 
             ok: false, 
             message: 'Xero credentials are not configured. Please configure CA_XERO_CLIENT_ID, CA_XERO_CLIENT_SECRET, and CA_XERO_REDIRECT_URI in your WordPress configuration (secrets.php or environment variables).' 
           });
           return;
         }
-        setResult({ ok: false, message: errorMessage });
+        setXeroResult({ ok: false, message: errorMessage });
       }
     } catch (error) {
       console.error('Failed to get Xero auth URL:', error);
@@ -73,12 +82,12 @@ export default function AdminIntegrations({ authContext }) {
       const errorMessage = error?.message || "Failed to connect to Xero";
       
       if (errorCode === 'xero_not_configured' || errorMessage.includes('not configured') || errorMessage.includes('xero_not_configured')) {
-        setResult({ 
+        setXeroResult({ 
           ok: false, 
           message: 'Xero credentials are not configured. Please configure CA_XERO_CLIENT_ID, CA_XERO_CLIENT_SECRET, and CA_XERO_REDIRECT_URI in your WordPress configuration (secrets.php or environment variables).' 
         });
       } else {
-        setResult({ ok: false, message: errorMessage });
+        setXeroResult({ ok: false, message: errorMessage });
       }
     }
   }, [getXeroAuthUrl]);
@@ -89,9 +98,9 @@ export default function AdminIntegrations({ authContext }) {
     }
     try {
       await disconnectXero.mutateAsync();
-      setResult({ ok: true, message: "Xero disconnected successfully" });
+      setXeroResult({ ok: true, message: "Xero disconnected successfully" });
     } catch (error) {
-      setResult({ ok: false, message: error.message || "Failed to disconnect Xero" });
+      setXeroResult({ ok: false, message: error.message || "Failed to disconnect Xero" });
     }
   }, [disconnectXero]);
 
@@ -108,32 +117,27 @@ export default function AdminIntegrations({ authContext }) {
               <CardDescription>Credentials and connection test.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div>
-                <label className="block text-xs text-muted-foreground">API key</label>
-                <Input
-                  className="mt-1 w-full"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk_live_xxx"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground">Location ID</label>
-                <Input
-                  className="mt-1 w-full"
-                  value={locationId}
-                  onChange={(e) => setLocationId(e.target.value)}
-                  placeholder="LOC_XXXX"
-                />
+              <div className="flex items-center gap-2 rounded-md bg-muted/50 p-3">
+                <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs font-medium text-foreground">Configured via environment</p>
+                  <p className="text-xs text-muted-foreground">API key and Location ID are set in server configuration.</p>
+                </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">Save</Button>
-                <Button variant="ghost" size="sm" onClick={testConnection} disabled={testing}>
-                  {testing ? "Testing…" : "Test connection"}
+                <Button variant="outline" size="sm" onClick={testConnection} disabled={testing}>
+                  {testing ? (
+                    <>
+                      <Spinner size="sm" className="mr-2" />
+                      Testing…
+                    </>
+                  ) : (
+                    "Test connection"
+                  )}
                 </Button>
               </div>
-              {result ? (
-                <p className={`text-xs ${result.ok ? "text-success" : "text-error"}`}>{result.message}</p>
+              {ghlResult ? (
+                <p className={`text-xs ${ghlResult.ok ? "text-success" : "text-error"}`}>{ghlResult.message}</p>
               ) : null}
             </CardContent>
           </Card>
@@ -211,8 +215,8 @@ export default function AdminIntegrations({ authContext }) {
                     </Button>
                   </div>
 
-                  {result && (result.message.includes("Xero") || result.message.includes("xero")) ? (
-                    <p className={`text-xs ${result.ok ? "text-success" : "text-error"}`}>{result.message}</p>
+                  {xeroResult ? (
+                    <p className={`text-xs ${xeroResult.ok ? "text-success" : "text-error"}`}>{xeroResult.message}</p>
                   ) : null}
                 </>
               )}

@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { AccountPreferences } from "../sections/AccountSection";
-import { mockActivityLog } from "../../../lib/mocks/portal";
 
 export function PreferencesView({ view }) {
-  // Use actual data if available, otherwise use mock data
-  const activityLog = view?.activity || mockActivityLog();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const activityLog = view?.activity ?? [];
 
   return (
     <div className="space-y-6">
@@ -31,8 +33,10 @@ export function PreferencesView({ view }) {
                   <p className="text-xs text-muted-foreground">{entry.description}</p>
                 </div>
                 {entry.when && (
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(entry.when).toLocaleDateString("en-AU")}
+                  <span className="text-xs text-muted-foreground" suppressHydrationWarning>
+                    {mounted
+                      ? new Date(entry.when).toLocaleDateString("en-AU")
+                      : new Date(entry.when).toISOString().split("T")[0]}
                   </span>
                 )}
               </div>

@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { formatDate } from "../utils/portal-utils";
 
 export const DocumentSection = memo(function DocumentSection({ documents }) {
+  const list = documents ?? [];
   return (
     <Card>
       <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -17,8 +18,8 @@ export const DocumentSection = memo(function DocumentSection({ documents }) {
         </Button>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">
-        {documents.length ? (
-          documents.map((doc) => (
+        {list.length ? (
+          list.map((doc) => (
             <div
               key={doc.id}
               className="flex items-center justify-between rounded-lg border border-border bg-background p-4"
@@ -36,7 +37,7 @@ export const DocumentSection = memo(function DocumentSection({ documents }) {
           ))
         ) : (
           <p className="col-span-full text-sm text-muted-foreground">
-            You'll see your proposal, contract, and invoices here once they're ready.
+            No documents.
           </p>
         )}
       </CardContent>

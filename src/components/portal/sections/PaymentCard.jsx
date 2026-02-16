@@ -239,7 +239,7 @@ export function PaymentCard({ estimateId, locationId, inviteToken, payment, work
 
   // If already paid, show confirmation
   if (payment && payment.status === 'paid') {
-    const formatAmount = (amount) => {
+    const formatPaidAmount = (amount) => {
       if (amount === null || amount === undefined) return '$0.00';
       const num = Number(amount);
       if (isNaN(num) || !isFinite(num)) return '$0.00';
@@ -264,7 +264,7 @@ export function PaymentCard({ estimateId, locationId, inviteToken, payment, work
             <div className="flex items-center justify-between">
               <span className="text-sm text-success">Amount Paid</span>
               <span className="text-2xl font-semibold text-success">
-                {formatAmount(payment.amount)}
+                {formatPaidAmount(payment.amount)}
               </span>
             </div>
             {payment.paidAt && (

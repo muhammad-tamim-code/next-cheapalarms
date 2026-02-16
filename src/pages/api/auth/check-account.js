@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
   const wpBase = process.env.NEXT_PUBLIC_WP_URL || WP_API_BASE;
   if (!wpBase) {
-    return res.status(500).json({ ok: false, error: "WP API base not configured" });
+    return res.status(500).json({ ok: false, err: "WP API base not configured" });
   }
 
   const devHeader = process.env.NODE_ENV === "development" ? { "X-CA-Dev": "1" } : {};
@@ -20,13 +20,12 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
         ...devHeader,
       },
-      credentials: "include",
       body: JSON.stringify(req.body ?? {}),
     });
     const body = await resp.json();
     return res.status(resp.status).json(body);
   } catch (e) {
-    return res.status(500).json({ ok: false, error: e instanceof Error ? e.message : "Failed" });
+    return res.status(500).json({ ok: false, err: e instanceof Error ? e.message : "Failed" });
   }
 }
 

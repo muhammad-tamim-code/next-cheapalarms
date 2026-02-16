@@ -19,10 +19,11 @@ export function formatDate(value) {
 
 export function formatCurrency(value) {
   const amount = Number(value ?? 0);
+  if (isNaN(amount)) return '$0.00';
   return new Intl.NumberFormat("en-AU", {
     style: "currency",
     currency: "AUD",
-  }).format(amount / 100);
+  }).format(amount);
 }
 
 export function badgeVariant(status) {

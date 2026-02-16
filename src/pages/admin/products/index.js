@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Head from "next/head";
+import { apiFetch } from "../../../lib/api/apiFetch";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "../../../components/ui/select";
@@ -69,9 +70,9 @@ export default function AdminProducts({ authContext }) {
       setLoadingLists(true);
       setError(null);
       const [b, a, p] = await Promise.all([
-        fetch("/api/products/base").then((r) => r.json()),
-        fetch("/api/products/addons").then((r) => r.json()),
-        fetch("/api/products/packages").then((r) => r.json()),
+        apiFetch("/api/products/base"),
+        apiFetch("/api/products/addons"),
+        apiFetch("/api/products/packages"),
       ]);
       setBaseItems(Array.isArray(b) ? b : []);
       setAddonItems(Array.isArray(a) ? a : []);
@@ -146,13 +147,11 @@ export default function AdminProducts({ authContext }) {
       setSaving(true);
       setError(null);
       const payload = sanitize(form);
-      const resp = await fetch("/api/products", {
+      const data = await apiFetch("/api/products", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data?.message || data?.err || "Save failed");
+      if (!data?.ok) throw new Error(data?.message || data?.err || "Save failed");
       setForm(initialProduct);
       await fetchAll();
     } catch (e) {
@@ -168,10 +167,10 @@ export default function AdminProducts({ authContext }) {
   }
 
   async function remove(id) {
-    const resp = await fetch(`/api/products/${encodeURIComponent(id)}`, { method: "DELETE" });
-    const data = await resp.json();
-    if (!resp.ok) {
-      toast.error(data?.message || data?.err || "Delete failed");
+    try {
+      await apiFetch(`/api/products/${encodeURIComponent(id)}`, { method: "DELETE" });
+    } catch (err) {
+      toast.error(err?.response?.message ?? err?.response?.err ?? err?.message ?? "Delete failed");
       return;
     }
     await fetchAll();

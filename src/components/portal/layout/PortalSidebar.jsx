@@ -12,15 +12,15 @@ const CUSTOMER_NAV_ITEMS = [
   { label: "Preferences", icon: Settings, href: "#preferences" },
 ];
 
-export function PortalSidebar({ activeNav, onNavChange, estimateId, onBackToList }) {
+export function PortalSidebar({ activeNav, onNavChange, estimateId, onBackToList, support }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleNavClick = (href) => {
-    // Extract id from href (e.g., "#overview" -> "overview")
     const itemId = href.replace("#", "");
-    onNavChange(itemId);
     if (itemId === "estimates" && estimateId) {
       onBackToList();
+    } else {
+      onNavChange(itemId);
     }
     setMobileOpen(false);
   };
@@ -84,11 +84,22 @@ export function PortalSidebar({ activeNav, onNavChange, estimateId, onBackToList
 
           {/* Custom Footer */}
           <div className="border-t border-primary/10 px-6 py-4 space-y-4">
-            <div className="rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 p-4 border border-primary/20">
-              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Need help?</p>
-              <p className="mt-2 text-sm font-semibold text-foreground">Text Hannah, your concierge.</p>
-              <p className="text-xs text-muted-foreground">Response under 5 mins.</p>
-            </div>
+            {support?.specialist?.name && (
+              <div className="rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 p-4 border border-primary/20">
+                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Need help?</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">
+                  Contact {support.specialist.name}{support.specialist.role ? `, ${support.specialist.role}` : ""}.
+                </p>
+                {support.specialist.phone && (
+                  <p className="text-xs text-muted-foreground">{support.specialist.phone}</p>
+                )}
+                {support.specialist.email && (
+                  <a href={`mailto:${support.specialist.email}`} className="text-xs text-primary underline">
+                    {support.specialist.email}
+                  </a>
+                )}
+              </div>
+            )}
             <SignOutButton />
           </div>
         </div>

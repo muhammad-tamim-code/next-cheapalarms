@@ -1,10 +1,8 @@
 import { SupportSection } from "../sections/SupportSection";
 import { FAQSection } from "../sections/AccountSection";
-import { mockSupportInfo } from "../../../lib/mocks/portal";
 
 export function SupportView({ view }) {
-  // Use actual data if available, otherwise use mock data
-  const support = view?.support || mockSupportInfo();
+  const support = view?.support ?? null;
 
   return (
     <div className="space-y-6">

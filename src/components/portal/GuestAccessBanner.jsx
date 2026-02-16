@@ -35,8 +35,8 @@ export function GuestAccessBanner({
     if (onSignIn) {
       onSignIn();
     } else {
-      // Default: redirect to login
-      router.push(`/login?redirect=/portal?estimateId=${estimateId}`);
+      // Default: redirect to login (use 'from' param which login page reads)
+      router.push(`/login?from=${encodeURIComponent(`/portal?estimateId=${estimateId}`)}`);
     }
   };
 

@@ -4,6 +4,21 @@ import { Button } from "../../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../ui/card";
 
 export const SupportSection = memo(function SupportSection({ support }) {
+  if (!support?.specialist) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>We're here to help</CardTitle>
+          <CardDescription>
+            Reach out anytime—your support specialist is ready to answer questions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No support specialist assigned yet.</p>
+        </CardContent>
+      </Card>
+    );
+  }
   return (
     <Card>
       <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

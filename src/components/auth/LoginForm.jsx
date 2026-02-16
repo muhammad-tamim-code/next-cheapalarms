@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 import { Lock, User } from "lucide-react";
 import { FloatingInput } from "./FloatingInput";
+import { sanitizeReturnUrl } from "../../lib/auth/auth-utils";
 
 export function LoginForm() {
   const router = useRouter();
@@ -64,7 +65,7 @@ export function LoginForm() {
 
       // Token is stored in httpOnly cookie by the API
       // Force a full page reload to ensure cookie is available
-      const returnUrl = router.query.from || "/dashboard";
+      const returnUrl = sanitizeReturnUrl(router.query.from);
       // Use window.location.replace to avoid adding to history
       window.location.replace(returnUrl);
     } catch (err) {

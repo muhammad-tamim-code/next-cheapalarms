@@ -8,7 +8,7 @@ import { requireAdmin } from "../../../lib/auth/requireAdmin";
 
 export default function AdminInvites({ authContext }) {
   const [q, setQ] = useState("");
-  const rows = mockInvites().filter((r) => filter(r, q));
+  const rows = [].filter((r) => filter(r, q));
   return (
     <>
       <Head>
@@ -64,7 +64,7 @@ export default function AdminInvites({ authContext }) {
                   {rows.length === 0 ? (
                     <tr>
                       <td className="px-3 py-6 text-center text-xs text-muted-foreground" colSpan={6}>
-                        No invites match your search.
+                        {q?.trim() ? "No invites match your search." : "No invites yet."}
                       </td>
                     </tr>
                   ) : null}
@@ -82,14 +82,6 @@ function filter(r, q) {
   if (!q?.trim()) return true;
   const s = q.toLowerCase();
   return r.customer.toLowerCase().includes(s) || r.estimate.toLowerCase().includes(s);
-}
-
-function mockInvites() {
-  return [
-    { id: "i1", customer: "John Smith", estimate: "EST-1001", lastSent: "Today", expires: "48h", status: "Active" },
-    { id: "i2", customer: "Mary Jones", estimate: "EST-1002", lastSent: "Yesterday", expires: "7d", status: "Active" },
-    { id: "i3", customer: "Acme Pty Ltd", estimate: "EST-1003", lastSent: "3d ago", expires: "Expired", status: "Expired" },
-  ];
 }
 
 export async function getServerSideProps(ctx) {

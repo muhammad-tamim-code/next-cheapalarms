@@ -33,7 +33,7 @@ export default async function handler(req, res) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: result.expires_in ?? 3600,
+      maxAge: result.expiresIn ?? 3600,
     });
 
     res.setHeader("Set-Cookie", cookie);
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
       ok: true,
       // Token is already set as httpOnly cookie - do not expose in response body
       user: result.user,
-      expiresAt: result.expires_at,
+      expiresAt: result.expiresAt,
     });
   } catch (error) {
     return res.status(401).json({

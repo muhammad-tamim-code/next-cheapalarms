@@ -2,6 +2,8 @@
  * Request utilities for admin pages
  */
 
+import { TOKEN_COOKIE } from "../../wp";
+
 /**
  * Extracts cookie header from Next.js request object
  * @param {object} req - Next.js request object
@@ -19,7 +21,9 @@ export function cookieHeader(req) {
  */
 export function buildAuthHeaders(req) {
   const cookies = cookieHeader(req);
-  const token = req?.headers?.cookie?.match(/ca_jwt=([^;]+)/)?.[1] || null;
+  const token = req?.headers?.cookie?.match(
+    new RegExp(`${TOKEN_COOKIE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}=([^;]+)`)
+  )?.[1] || null;
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
   const devHeader = process.env.NODE_ENV === "development" ? { "X-CA-Dev": "1" } : {};
 

@@ -13,7 +13,7 @@
  * Note: This route is called by Xero (external redirect), so it cannot use
  * proxyToWordPress directly. It must handle the redirect flow itself.
  */
-import { getWpBase } from "../../../lib/api/wp-proxy";
+import { getWpBase, createWpHeaders } from "../../../lib/api/wp-proxy";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -44,9 +44,11 @@ export default async function handler(req, res) {
       throw new Error("WordPress API URL not configured");
     }
 
+    const wpHeaders = createWpHeaders(req);
     const response = await fetch(`${wpBase}/ca/v1/xero/callback`, {
       method: "POST",
       headers: {
+        ...wpHeaders,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

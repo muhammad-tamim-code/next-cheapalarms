@@ -1,16 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { Camera, Image, X, Eye, CheckCircle, XCircle, Trash2 } from "lucide-react";
+import { Camera, Image, X, Eye, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "../../ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../../ui/alert-dialog";
 import { useEstimate, useEstimatePhotos, useStoreEstimatePhotos } from "../../../lib/react-query/hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import { Spinner } from "../../ui/spinner";
@@ -51,7 +41,9 @@ function ProductSlot({
   const [photoToDelete, setPhotoToDelete] = useState(null);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
-  const isMobile = isMobileDevice();
+  // Detect mobile after mount to avoid SSR hydration mismatch
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => { setIsMobile(isMobileDevice()); }, []);
   const queryClient = useQueryClient();
   const storePhotosMutation = useStoreEstimatePhotos();
 
@@ -594,64 +586,76 @@ export function ProductPhotoUpload({
   const error = estimateError?.message || null;
 
   // Trigger file input when initialAction is set
+  // If initialItemName is not provided, target the first registered product
   useEffect(() => {
-    if (!initialAction || !initialItemName) return;
+    if (!initialAction) return;
 
     const timer = setTimeout(() => {
+      // Resolve target: explicit item name, or fall back to first registered product
+      const targetName =
+        initialItemName ||
+        Object.keys(fileInputRefs.current)[0] ||
+        Object.keys(productSlotRefs.current)[0] ||
+        null;
+
       if (initialAction === "upload") {
-        // Try direct ref first (most reliable)
-        const fileInput = fileInputRefs.current[initialItemName];
-        if (fileInput && fileInput.current) {
-          fileInput.current.click();
-          onInitialActionHandled?.();
-          return;
-        }
-        
-        // Fallback: try to find via querySelector
-        const targetElement = productSlotRefs.current[initialItemName];
-        if (targetElement) {
-          const uploadButton = targetElement.querySelector('button[title="Upload Photo"]');
-          if (uploadButton) {
-            uploadButton.click();
+        if (targetName) {
+          // Try direct ref first (most reliable)
+          const fileInput = fileInputRefs.current[targetName];
+          if (fileInput && fileInput.current) {
+            fileInput.current.click();
             onInitialActionHandled?.();
             return;
           }
-          const fileButton = targetElement.querySelector('button[title="Add Photo"]');
-          if (fileButton) {
-            fileButton.click();
-            onInitialActionHandled?.();
-            return;
-          }
-          const fileInputElement = targetElement.querySelector('input[type="file"]:not([capture])');
-          if (fileInputElement) {
-            fileInputElement.click();
-            onInitialActionHandled?.();
-            return;
+
+          // Fallback: try to find via querySelector
+          const targetElement = productSlotRefs.current[targetName];
+          if (targetElement) {
+            const uploadButton = targetElement.querySelector('button[title="Upload Photo"]');
+            if (uploadButton) {
+              uploadButton.click();
+              onInitialActionHandled?.();
+              return;
+            }
+            const fileButton = targetElement.querySelector('button[title="Add Photo"]');
+            if (fileButton) {
+              fileButton.click();
+              onInitialActionHandled?.();
+              return;
+            }
+            const fileInputElement = targetElement.querySelector('input[type="file"]:not([capture])');
+            if (fileInputElement) {
+              fileInputElement.click();
+              onInitialActionHandled?.();
+              return;
+            }
           }
         }
       } else if (initialAction === "camera") {
-        // Try direct ref first
-        const cameraInput = cameraInputRefs.current[initialItemName];
-        if (cameraInput && cameraInput.current) {
-          cameraInput.current.click();
-          onInitialActionHandled?.();
-          return;
-        }
-        
-        // Fallback: try to find via querySelector
-        const targetElement = productSlotRefs.current[initialItemName];
-        if (targetElement) {
-          const cameraButton = targetElement.querySelector('button[title="Take Photo"]');
-          if (cameraButton) {
-            cameraButton.click();
+        if (targetName) {
+          // Try direct ref first
+          const cameraInput = cameraInputRefs.current[targetName];
+          if (cameraInput && cameraInput.current) {
+            cameraInput.current.click();
             onInitialActionHandled?.();
             return;
           }
-          const cameraInputElement = targetElement.querySelector('input[type="file"][capture="environment"]');
-          if (cameraInputElement) {
-            cameraInputElement.click();
-            onInitialActionHandled?.();
-            return;
+
+          // Fallback: try to find via querySelector
+          const targetElement = productSlotRefs.current[targetName];
+          if (targetElement) {
+            const cameraButton = targetElement.querySelector('button[title="Take Photo"]');
+            if (cameraButton) {
+              cameraButton.click();
+              onInitialActionHandled?.();
+              return;
+            }
+            const cameraInputElement = targetElement.querySelector('input[type="file"][capture="environment"]');
+            if (cameraInputElement) {
+              cameraInputElement.click();
+              onInitialActionHandled?.();
+              return;
+            }
           }
         }
       }
@@ -751,23 +755,6 @@ export function ProductPhotoUpload({
          />
       ))}
 
-      {/* Delete Photo Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Photo?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this photo? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeletePhoto}>
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

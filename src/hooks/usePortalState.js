@@ -489,12 +489,8 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
         entries.push({
           label: netChange < 0 ? 'Price Adjusted - Savings!' : 'Estimate Updated',
           detail: description || 'Your estimate has been reviewed',
-          time: rev.revisedAt ? new Date(rev.revisedAt).toLocaleString('en-AU', { 
-            day: 'numeric', 
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit'
-          }) : '',
+          time: rev.revisedAt || '',
+          rawTime: rev.revisedAt || null,
           type: 'revision',
           revisionId: rev.revisionId,
         });

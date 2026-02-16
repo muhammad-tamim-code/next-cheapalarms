@@ -160,10 +160,10 @@ export function EstimatesListView({ estimates, loading, error, onSelectEstimate,
                     {formatAddress(selectedEstimate.address || selectedEstimate.meta?.address) || "Pending"}
                   </span>
                 </div>
-                {selectedEstimate.total && (
+                {selectedEstimate.total != null && (
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Total</span>
-                    <span className="text-lg font-bold bg-gradient-to-r from-[#c95375] to-[#2fb6c9] bg-clip-text text-transparent">
+                    <span className="text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                       ${selectedEstimate.total.toLocaleString("en-AU", { minimumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -199,7 +199,7 @@ export function EstimatesListView({ estimates, loading, error, onSelectEstimate,
                         {estimate.label || `Estimate #${estimate.number || estId}`}
                       </span>
                     </div>
-                    {estimate.total && (
+                    {estimate.total != null && (
                       <span className="text-sm font-semibold text-muted-foreground">
                         ${estimate.total.toLocaleString("en-AU")}
                       </span>

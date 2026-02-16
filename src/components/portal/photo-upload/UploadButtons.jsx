@@ -1,5 +1,5 @@
 import { Camera, Image as ImageIcon } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 
 /**
  * Upload buttons component - Camera and Gallery options
@@ -9,9 +9,14 @@ export function UploadButtons({ onFileSelect, uploading = false }) {
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   
-  // Detect if mobile device
-  const isMobile = typeof window !== 'undefined' && 
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  // Detect mobile after mount to avoid SSR hydration mismatch
+  // Server and first client render both see isMobile=false
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    setIsMobile(
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    );
+  }, []);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {

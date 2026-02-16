@@ -15,6 +15,7 @@ import { getAuthContext } from "../../lib/auth/getAuthContext";
 import { getLoginRedirect } from "../../lib/auth";
 import { usePortalState } from "../../hooks/usePortalState";
 import { ExpiredInviteMessage } from "../../components/portal/ExpiredInviteMessage";
+import { PortalErrorBoundary } from "../../components/portal/PortalErrorBoundary";
 import { Button } from "../../components/ui/button";
 
 export default function PortalPage({ initialStatus, initialError, initialEstimateId, initialEstimates }) {
@@ -66,9 +67,11 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
             onNavChange={handleNavigateToSection}
             estimateId={estimateId}
             onBackToList={handleBackToList}
+            support={view?.support}
           />
 
           <section className="flex-1 overflow-y-auto px-6 py-10 space-y-6">
+            <PortalErrorBoundary>
             {/* Guest Access Banner */}
             {view?.isGuestMode && (
               <GuestAccessBanner 
@@ -79,7 +82,7 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
                   router.push(`/set-password?estimateId=${estimateId}`);
                 }}
                 onSignIn={() => {
-                  router.push(`/login?redirect=/portal?estimateId=${estimateId}`);
+                  router.push(`/login?from=${encodeURIComponent(`/portal?estimateId=${estimateId}`)}`);
                 }}
               />
             )}
@@ -100,13 +103,7 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
                    estimateError?.message?.includes?.('invalid_invite') ||
                    estimateError?.message?.includes?.('expired') ||
                    estimateError?.message?.includes?.('no longer valid')) ? (
-                    <ExpiredInviteMessage 
-                      estimateId={estimateId}
-                      onRequestNewInvite={async () => {
-                        // User would need to contact support
-                        // In future, could add API endpoint to request new invite
-                      }}
-                    />
+                    <ExpiredInviteMessage estimateId={estimateId} />
                   ) : (
                     <div className="rounded-[32px] border border-error/30 bg-error-bg p-6 text-error shadow-[0_25px_80px_rgba(15,23,42,0.08)] animate-in fade-in slide-in-from-top-2 duration-300">
                       <div className="flex items-start gap-4">
@@ -164,12 +161,7 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
                   (error?.includes?.('invalid_invite') || 
                    error?.includes?.('expired') || 
                    error?.includes?.('no longer valid')) ? (
-                    <ExpiredInviteMessage 
-                      estimateId={estimateId}
-                      onRequestNewInvite={async () => {
-                        // User would need to contact support
-                      }}
-                    />
+                    <ExpiredInviteMessage estimateId={estimateId} />
                   ) : (
                     <div className="rounded-[32px] border border-error/30 bg-error-bg p-6 text-error shadow-[0_25px_80px_rgba(15,23,42,0.08)] animate-in fade-in slide-in-from-top-2 duration-300">
                       <div className="flex items-start gap-4">
@@ -227,6 +219,7 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
 
             {/* Preferences View */}
             {activeNav === "preferences" && <PreferencesView view={view} />}
+            </PortalErrorBoundary>
           </section>
         </div>
       </main>

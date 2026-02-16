@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { memo, useState, useCallback } from "react";
 import { Button } from "../../ui/button";
+import { apiFetch } from "../../../lib/api/apiFetch";
 import { Input } from "../../ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../ui/card";
 import {
@@ -76,6 +77,8 @@ export const PhotoSection = memo(function PhotoSection({ photos, photoTab, setPh
   const [uploadError, setUploadError] = useState("");
   const [photosSkipped, setPhotosSkipped] = useState(false);
   const [skipDialogOpen, setSkipDialogOpen] = useState(false);
+  // Track whether we should auto-trigger the file picker on the "missing" tab
+  const [autoTriggerUpload, setAutoTriggerUpload] = useState(false);
 
   // Update tabs when uploaded count changes
   const tabs = [
@@ -105,13 +108,11 @@ export const PhotoSection = memo(function PhotoSection({ photos, photoTab, setPh
     setEmailError("");
     setSendingEmail(true);
     try {
-      const res = await fetch("/api/auth/send-password-reset", {
+      const json = await apiFetch("/api/auth/send-password-reset", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: { email },
       });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
+      if (!json.ok) {
         throw new Error(json.err || json.error || "Failed to send email");
       }
       setEmailSent(true);
@@ -221,14 +222,9 @@ export const PhotoSection = memo(function PhotoSection({ photos, photoTab, setPh
           ) : (
             <EmptyPhotoState
               onSelectFiles={() => {
-                // Switch to missing tab where PhotoUpload is rendered
+                // Switch to missing tab and signal ProductPhotoUpload to auto-open file picker
+                setAutoTriggerUpload(true);
                 setPhotoTab("missing");
-                // After a brief delay, trigger the file input
-                setTimeout(() => {
-                  if (photoUploadRef.current) {
-                    photoUploadRef.current.click();
-                  }
-                }, 100);
               }}
               onSkip={handleSkipPhotosClick}
             />
@@ -249,6 +245,8 @@ export const PhotoSection = memo(function PhotoSection({ photos, photoTab, setPh
               <ProductPhotoUpload
                 estimateId={estimateId}
                 locationId={locationId}
+                initialAction={autoTriggerUpload ? "upload" : undefined}
+                onInitialActionHandled={() => setAutoTriggerUpload(false)}
                 onUploadComplete={handleUploadComplete}
                 onError={handleUploadError}
               />

@@ -1,27 +1,13 @@
-import { AlertCircle, Mail, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { AlertCircle, Mail } from "lucide-react";
 
 /**
  * Friendly error message for expired invite tokens
- * Shows actionable next steps instead of a generic error
+ * Shows actionable next steps - Contact Support via mailto
  */
-export function ExpiredInviteMessage({ estimateId, onRequestNewInvite }) {
-  const [requesting, setRequesting] = useState(false);
-  const [requested, setRequested] = useState(false);
-
-  const handleRequestInvite = async () => {
-    setRequesting(true);
-    try {
-      if (onRequestNewInvite) {
-        await onRequestNewInvite();
-      }
-      setRequested(true);
-    } catch (error) {
-      // Error handled by parent
-    } finally {
-      setRequesting(false);
-    }
-  };
+export function ExpiredInviteMessage({ estimateId }) {
+  const mailtoUrl = `mailto:support@cheapalarms.com.au?subject=${encodeURIComponent(
+    `Portal invite link expired${estimateId ? ` - Estimate #${estimateId}` : ""}`
+  )}`;
 
   return (
     <div className="rounded-[32px] border-2 border-warning/50 bg-gradient-to-br from-warning-bg to-warning-bg/80 p-8 shadow-[0_25px_80px_rgba(245,158,11,0.15)]">
@@ -34,63 +20,14 @@ export function ExpiredInviteMessage({ estimateId, onRequestNewInvite }) {
           <p className="mt-2 text-foreground">
             This portal invite link has expired. Invite links are valid for 7 days for security.
           </p>
-          
-          {!requested ? (
-            <>
-              <div className="mt-4 rounded-2xl border border-warning/50 bg-background/80 p-4">
-                <p className="text-sm font-semibold text-foreground mb-2">What happens next?</p>
-                <ul className="space-y-2 text-sm text-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="rounded-full bg-warning-bg px-2 py-0.5 text-xs font-semibold text-warning">1</span>
-                    <span>Click the button below to request a new invite link</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="rounded-full bg-warning-bg px-2 py-0.5 text-xs font-semibold text-warning">2</span>
-                    <span>Our team will be notified and will send you a fresh link</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="rounded-full bg-warning-bg px-2 py-0.5 text-xs font-semibold text-warning">3</span>
-                    <span>Check your email inbox (usually arrives within minutes)</span>
-                  </li>
-                </ul>
-              </div>
 
-              <button
-                onClick={handleRequestInvite}
-                disabled={requesting}
-                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition hover:shadow-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {requesting ? (
-                  <>
-                    <RefreshCw className="h-5 w-5 animate-spin" />
-                    Requesting...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="h-5 w-5" />
-                    Request New Invite Link
-                  </>
-                )}
-              </button>
-            </>
-          ) : (
-            <div className="mt-4 rounded-2xl border-2 border-success/50 bg-success-bg p-4">
-              <div className="flex items-start gap-3">
-                <div className="rounded-full bg-success-bg p-2">
-                  <Mail className="h-5 w-5 text-success" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-success">Request Sent!</p>
-                  <p className="mt-1 text-sm text-foreground">
-                    We've notified our team. You should receive a new invite link in your email shortly.
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Check your spam folder if you don't see it within 10 minutes.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          <a
+            href={mailtoUrl}
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition hover:shadow-xl hover:bg-primary/90"
+          >
+            <Mail className="h-5 w-5" />
+            Contact Support
+          </a>
 
           <div className="mt-6 rounded-xl border border-border bg-muted p-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">

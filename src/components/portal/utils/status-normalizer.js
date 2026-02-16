@@ -1,5 +1,3 @@
-import { mockSamplePhotos } from "../../../lib/mocks/portal";
-
 /**
  * Normalizes portal status data from API to consistent format
  */
@@ -61,11 +59,41 @@ export function normaliseStatus(status) {
       uploaded: photos.uploaded ?? 0,
       last_edited_at: photos.last_edited_at ?? null,
     },
-    payments: status.payments ?? null,
+    // Transform backend payment → PaymentsView shape
+    // Backend returns `payment` (singular) with { remainingBalance, payments[], invoiceTotal }
+    // PaymentsView expects `payments` (plural) with { outstanding, history[] }
+    payments: status.payment
+      ? {
+          outstanding: status.payment.remainingBalance ?? 0,
+          history: (status.payment.payments ?? [])
+            .filter((p) => p.status === "succeeded" && !p.refunded)
+            .map((p, i) => ({
+              id: p.transactionId || p.paymentIntentId || `pay-${i}`,
+              label: `${p.provider === "stripe" ? "Card payment" : p.provider ?? "Payment"}`,
+              amount: p.amount ?? 0,
+              date: p.paidAt ?? null,
+            })),
+        }
+      : null,
+    // Documents from backend portal meta (may be empty until populated by workflows)
     documents: status.documents ?? null,
     tasks: status.tasks ?? null,
     support: status.support ?? null,
-    activity: status.activity ?? null,
+    // Transform revisionHistory → activity log for PreferencesView
+    // Each revision has { revisionId, revisedAt, revisedBy, adminNote, oldTotal, newTotal, netChange }
+    activity:
+      (status.revisionHistory ?? []).length > 0
+        ? status.revisionHistory.map((rev, i) => ({
+            id: rev.revisionId || `rev-${i}`,
+            title: rev.adminNote
+              ? `Estimate revised: ${rev.adminNote}`
+              : `Estimate revised`,
+            description: rev.netChange
+              ? `Total changed by $${Math.abs(rev.netChange).toFixed(2)} (by ${rev.revisedBy?.name || "Admin"})`
+              : `Updated by ${rev.revisedBy?.name || "Admin"}`,
+            when: rev.revisedAt ?? null,
+          }))
+        : null,
     timeline: installation.timeline ?? null,
     // Workflow data (for customer journey tracking)
     workflow: status.workflow ?? null,

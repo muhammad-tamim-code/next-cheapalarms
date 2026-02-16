@@ -4,6 +4,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { formatDate, formatCurrency } from "../utils/portal-utils";
 
 export const PaymentSection = memo(function PaymentSection({ payments }) {
+  if (!payments) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Payments</CardTitle>
+          <CardDescription>Track outstanding balance and past receipts.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No payments yet.</p>
+        </CardContent>
+      </Card>
+    );
+  }
   const outstanding = payments.outstanding ?? 0;
   return (
     <Card>

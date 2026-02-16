@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, Clock, MessageSquare, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../../ui/card";
 import { Button } from "../../ui/button";
@@ -186,8 +186,9 @@ export function BookingCard({ estimateId, locationId, inviteToken, booking, work
     }
   };
 
-  // Get minimum date (today)
-  const today = new Date().toISOString().split('T')[0];
+  // Compute today's date after mount to avoid SSR hydration mismatch
+  const [today, setToday] = useState(""); // empty default is safe for minDate
+  useEffect(() => { setToday(new Date().toISOString().split("T")[0]); }, []);
 
   return (
     <Card className="shadow-elevated animate-in fade-in duration-300">

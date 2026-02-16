@@ -4,18 +4,8 @@
  */
 
 import { AUTH_TIMEOUT } from "../api/constants";
-
-function getWpJsonBase() {
-  const base =
-    process.env.WP_JSON_BASE ||
-    process.env.NEXT_PUBLIC_WP_URL; // fallback
-
-  if (base) return base;
-  if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:10013/wp-json';
-  }
-  throw new Error('WP JSON base URL is not set');
-}
+import { getWpBase } from "../api/wp-proxy";
+import { TOKEN_COOKIE } from "../wp";
 
 export async function getAuthContext(req) {
   if (!req?.headers?.cookie) {
@@ -23,12 +13,12 @@ export async function getAuthContext(req) {
   }
 
   // Check if cookie contains the token
-  const hasToken = req.headers.cookie.includes('ca_jwt=');
+  const hasToken = req.headers.cookie.includes(`${TOKEN_COOKIE}=`);
   if (!hasToken) {
     return null;
   }
 
-  const wpBase = getWpJsonBase();
+  const wpBase = getWpBase();
 
   try {
     // Add timeout to prevent hanging (using AUTH_TIMEOUT constant)
@@ -36,10 +26,14 @@ export async function getAuthContext(req) {
     const timeoutId = setTimeout(() => controller.abort(), AUTH_TIMEOUT);
 
     let response;
+    if (!wpBase) {
+      console.error('[getAuthContext] WP API base not configured');
+      return null;
+    }
     try {
-      // Extract only ca_jwt cookie to ensure clean format
+      // Extract only token cookie to ensure clean format
       const cookies = req.headers.cookie.split(';').map(c => c.trim());
-      const caJwtCookie = cookies.find(c => c.startsWith('ca_jwt='));
+      const caJwtCookie = cookies.find(c => c.startsWith(`${TOKEN_COOKIE}=`));
       const cookieHeader = caJwtCookie || req.headers.cookie;
 
       response = await fetch(`${wpBase}/ca/v1/auth/me`, {

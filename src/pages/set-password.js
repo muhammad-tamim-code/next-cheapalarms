@@ -1,7 +1,6 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import { TOKEN_COOKIE } from "../lib/wp";
 
 export default function SetPasswordPage() {
   const router = useRouter();
@@ -10,6 +9,42 @@ export default function SetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [keyValid, setKeyValid] = useState(null);
+  const [keyValidating, setKeyValidating] = useState(false);
+  const [keyError, setKeyError] = useState("");
+
+  const resetKey = Array.isArray(key) ? key[0] : key;
+  const userLogin = Array.isArray(login) ? login[0] : login;
+
+  useEffect(() => {
+    if (!router.isReady || !resetKey || !userLogin) return;
+    let cancelled = false;
+    setKeyValidating(true);
+    setKeyError("");
+    fetch("/api/auth/validate-reset-key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: resetKey, login: userLogin }),
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return;
+        setKeyValidating(false);
+        if (json?.ok) {
+          setKeyValid(true);
+        } else {
+          setKeyValid(false);
+          setKeyError(json?.error || json?.err || json?.message || "This password reset link is invalid or has expired.");
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setKeyValidating(false);
+        setKeyValid(false);
+        setKeyError(err?.message || "Failed to validate reset link.");
+      });
+    return () => { cancelled = true; };
+  }, [router.isReady, resetKey, userLogin]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -90,10 +125,6 @@ export default function SetPasswordPage() {
     );
   }
 
-  // Extract query params (handle array case)
-  const resetKey = Array.isArray(key) ? key[0] : key;
-  const userLogin = Array.isArray(login) ? login[0] : login;
-
   if (!resetKey || !userLogin) {
     return (
       <>
@@ -104,6 +135,47 @@ export default function SetPasswordPage() {
           <div className="w-full max-w-md bg-card rounded-lg shadow-lg p-6 border border-border">
             <h1 className="text-2xl font-bold text-foreground mb-4">Invalid Link</h1>
             <p className="text-muted-foreground mb-6">This password reset link is invalid or has expired.</p>
+            <button
+              type="button"
+              onClick={() => router.push("/portal")}
+              className="w-full bg-primary text-primary-foreground font-semibold py-3 px-4 rounded-lg shadow-lg transition-all hover:opacity-90"
+            >
+              Go to Portal
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (keyValidating || keyValid === null) {
+    return (
+      <>
+        <Head>
+          <title>Set Your Password - CheapAlarms</title>
+        </Head>
+        <div className="flex min-h-screen items-center justify-center bg-muted p-4">
+          <div className="w-full max-w-md bg-card rounded-lg shadow-lg p-6 border border-border">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-foreground" />
+              <p className="mt-4 text-muted-foreground">Validating reset link...</p>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (keyValid === false) {
+    return (
+      <>
+        <Head>
+          <title>Set Your Password - CheapAlarms</title>
+        </Head>
+        <div className="flex min-h-screen items-center justify-center bg-muted p-4">
+          <div className="w-full max-w-md bg-card rounded-lg shadow-lg p-6 border border-border">
+            <h1 className="text-2xl font-bold text-foreground mb-4">Invalid or Expired Link</h1>
+            <p className="text-muted-foreground mb-6">{keyError}</p>
             <button
               type="button"
               onClick={() => router.push("/portal")}

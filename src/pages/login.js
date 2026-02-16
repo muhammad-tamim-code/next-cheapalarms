@@ -4,6 +4,7 @@ import { LoginBackground } from "../components/auth/LoginBackground";
 import { LoginCard } from "../components/auth/LoginCard";
 import { LoginForm } from "../components/auth/LoginForm";
 import { getAuthContext } from "../lib/auth/getAuthContext";
+import { sanitizeReturnUrl } from "../lib/auth/auth-utils";
 
 /**
  * Login Page
@@ -38,7 +39,7 @@ export async function getServerSideProps(ctx) {
   
   // If already authenticated, redirect to dashboard (or return URL)
   if (authContext) {
-    const returnUrl = ctx.query.from || "/dashboard";
+    const returnUrl = sanitizeReturnUrl(ctx.query.from);
     return {
       redirect: {
         destination: returnUrl,

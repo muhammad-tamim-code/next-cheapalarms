@@ -4,6 +4,7 @@
  */
 
 import { parse as parseCookie } from "cookie";
+import { TOKEN_COOKIE } from "../wp";
 
 const WP_API_BASE = process.env.NEXT_PUBLIC_WP_URL || "http://localhost:8882";
 
@@ -62,12 +63,12 @@ export function createWpHeaders(req) {
   let token = null;
   try {
     const cookies = parseCookie(rawCookieHeader);
-    token = cookies.ca_jwt || null;
+    token = cookies[TOKEN_COOKIE] || null;
   } catch (parseError) {
     // Parsing failed - try manual extraction as fallback
     // This handles edge cases where parseCookie fails but cookie exists
-    if (rawCookieHeader.includes('ca_jwt=')) {
-      const match = rawCookieHeader.match(/ca_jwt=([^;]+)/);
+    if (rawCookieHeader.includes(`${TOKEN_COOKIE}=`)) {
+      const match = rawCookieHeader.match(new RegExp(`${TOKEN_COOKIE}=([^;]+)`));
       if (match && match[1]) {
         try {
           token = decodeURIComponent(match[1].trim());
@@ -87,10 +88,11 @@ export function createWpHeaders(req) {
 
   return {
     "Content-Type": "application/json",
-    // FIX: Always forward raw cookie header, even if empty
-    // WordPress can parse it even if Next.js couldn't
-    // This ensures cookies are available on WordPress side even if Next.js parsing failed
+    // Always forward raw cookie header for WordPress auth
     Cookie: rawCookieHeader,
+    // CSRF: X-Requested-With proves the request came from same-origin JS code
+    // (browsers block custom headers on cross-origin requests by default)
+    "X-Requested-With": "NextJSProxy",
     ...authHeader,
     ...devHeader,
     ...nonceHeader,

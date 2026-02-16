@@ -2,15 +2,13 @@ import { useState } from "react";
 import { PaymentSection } from "../sections/PaymentSection";
 import { DocumentSection } from "../sections/DocumentSection";
 import { TaskSection } from "../sections/TaskSection";
-import { mockPaymentHistory, mockDocumentList, mockTaskList } from "../../../lib/mocks/portal";
 
 export function PaymentsView({ view }) {
   const [taskState, setTaskState] = useState({});
-  
-  // Use actual data if available, otherwise use mock data
-  const payments = view?.payments || mockPaymentHistory();
-  const documents = view?.documents || mockDocumentList();
-  const tasks = view?.tasks || mockTaskList();
+
+  const payments = view?.payments ?? null;
+  const documents = view?.documents ?? null;
+  const tasks = view?.tasks ?? null;
 
   return (
     <div className="space-y-6">

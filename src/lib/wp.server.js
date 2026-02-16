@@ -61,7 +61,6 @@ async function wpFetch(path, options = {}) {
     timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
     
     const response = await fetch(url, {
-      credentials: "include",
       ...options,
       headers,
       signal: controller.signal,
@@ -109,7 +108,6 @@ export async function authenticate({ username, password }) {
     headers: {
       "Content-Type": "application/json",
     },
-    credentials: "include",
   });
 }
 

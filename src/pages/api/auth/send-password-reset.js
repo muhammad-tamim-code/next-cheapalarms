@@ -1,5 +1,4 @@
 import { WP_API_BASE } from "../../../lib/wp.server";
-import { parse as parseCookie } from "cookie";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -21,13 +20,12 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
         ...devHeader,
       },
-      credentials: "include",
       body: JSON.stringify(req.body ?? {}),
     });
     const body = await resp.json();
     return res.status(resp.status).json(body);
   } catch (e) {
-    return res.status(500).json({ ok: false, error: e instanceof Error ? e.message : "Failed" });
+    return res.status(500).json({ ok: false, err: e instanceof Error ? e.message : "Failed" });
   }
 }
 
