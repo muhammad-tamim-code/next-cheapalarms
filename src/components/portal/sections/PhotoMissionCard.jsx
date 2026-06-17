@@ -18,6 +18,7 @@ export function PhotoMissionCard({
   locationId,
   view,
   onLaunchCamera,
+  onOpenPhotoManager,
 }) {
   const isGuestMode = view?.isGuestMode ?? false;
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -56,15 +57,19 @@ export function PhotoMissionCard({
     const photosByProduct = groupPhotosByProduct(photosData?.stored?.uploads || []);
 
     // Group estimate items by name
-    // Track photoRequired - if ANY item with this name requires photos, require photos
+    // Skip bundle parents / section headings (admin override `isHeading: true`)
+    // and resolve photoRequired with the same precedence as PhotoUploadView.
     const grouped = {};
     estimateData.items.forEach(item => {
       const name = item.name || 'Unknown Item';
-      // Check itemsMeta by NAME (not ID) because GHL assigns different IDs than frontend
-      // This fixes the photoRequired flag not being applied correctly
       const metaForItem = itemsMeta[name];
-      const itemRequiresPhoto = metaForItem 
-        ? metaForItem.photoRequired === true 
+
+      if (metaForItem?.isHeading) return;
+
+      const itemRequiresPhoto = metaForItem
+        ? (typeof metaForItem.photoRequired === 'boolean'
+            ? metaForItem.photoRequired
+            : !(item.isCustom || metaForItem.isCustom))
         : (item.photoRequired !== false && !item.isCustom);
       
       if (!grouped[name]) {
@@ -204,14 +209,27 @@ export function PhotoMissionCard({
     <>
       <div className="rounded-xl border-2 border-border bg-surface p-6 shadow-lg">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-rose-100 to-teal-100">
-            <Camera className="h-5 w-5 text-primary" />
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-rose-100 to-teal-100">
+              <Camera className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-xl font-bold text-foreground">Photo Upload System</h3>
+              <p className="text-xs text-muted-foreground">With limits & admin photo requests</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-bold text-foreground">Photo Upload System</h3>
-            <p className="text-xs text-muted-foreground">With limits & admin photo requests</p>
-          </div>
+          {onOpenPhotoManager && !isGuestMode && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onOpenPhotoManager}
+              className="shrink-0 rounded-full"
+            >
+              Open photo manager
+            </Button>
+          )}
         </div>
 
         {/* Admin Photo Requests Banner - Compact */}

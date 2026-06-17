@@ -18,7 +18,7 @@ export function BulkDeleteDialog({
   itemCount = 0,
   isLoading = false,
   showScopeSelection = true,
-  scope = 'both',
+  scope = 'local',
   onScopeChange,
   itemType = 'Item',
   trashMode = false,

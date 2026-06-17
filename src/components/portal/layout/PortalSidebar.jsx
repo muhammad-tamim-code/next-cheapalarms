@@ -1,24 +1,30 @@
 import { useState } from "react";
-import { Sparkles, ListChecks, CreditCard, MessageCircle, Settings } from "lucide-react";
+import { Sparkles, ListChecks, Camera, CreditCard, MessageCircle, Settings } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Sidebar as UISidebar } from "../../ui/sidebar";
 import { SignOutButton } from "../../ui/sign-out-button";
+import { BRAND } from "../../../config/brand";
 
 const CUSTOMER_NAV_ITEMS = [
   { label: "Overview", icon: Sparkles, href: "#overview" },
   { label: "Estimates", icon: ListChecks, href: "#estimates" },
+  { label: "Install Photos", icon: Camera, href: "#photos", badgeKey: "photos" },
   { label: "Payments", icon: CreditCard, href: "#payments" },
   { label: "Support", icon: MessageCircle, href: "#support" },
   { label: "Preferences", icon: Settings, href: "#preferences" },
 ];
 
-export function PortalSidebar({ activeNav, onNavChange, estimateId, onBackToList, support }) {
+export function PortalSidebar({ activeNav, onNavChange, estimateId, onBackToList, support, badges = {}, onPhotosClick }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleNavClick = (href) => {
     const itemId = href.replace("#", "");
     if (itemId === "estimates" && estimateId) {
       onBackToList();
+    } else if (itemId === "photos" && onPhotosClick) {
+      // Photos has bespoke logic: if no estimate is open, pick the most-recent
+      // one so the dedicated photos page actually has data to load.
+      onPhotosClick();
     } else {
       onNavChange(itemId);
     }
@@ -51,7 +57,7 @@ export function PortalSidebar({ activeNav, onNavChange, estimateId, onBackToList
         <div className="flex flex-col h-full max-h-screen">
           {/* Header */}
           <div className="px-6 py-6 border-b border-primary/10">
-            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground font-medium">CheapAlarms</p>
+            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground font-medium">{BRAND.name}</p>
             <p className="mt-2 text-lg font-semibold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Customer Portal
             </p>
@@ -63,6 +69,7 @@ export function PortalSidebar({ activeNav, onNavChange, estimateId, onBackToList
             {CUSTOMER_NAV_ITEMS.map((item) => {
               const isActive = activeItem === item.href;
               const Icon = item.icon;
+              const badgeValue = item.badgeKey ? badges[item.badgeKey] : null;
               return (
                 <Button
                   key={item.href}
@@ -77,6 +84,18 @@ export function PortalSidebar({ activeNav, onNavChange, estimateId, onBackToList
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   <span className="flex-1 text-left">{item.label}</span>
+                  {badgeValue ? (
+                    <span
+                      className={`min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                        isActive
+                          ? "bg-primary-foreground/20 text-primary-foreground"
+                          : "bg-error text-error-foreground"
+                      }`}
+                      aria-label={`${badgeValue} pending`}
+                    >
+                      {badgeValue}
+                    </span>
+                  ) : null}
                 </Button>
               );
             })}

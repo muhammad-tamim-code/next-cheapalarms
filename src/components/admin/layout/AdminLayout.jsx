@@ -106,6 +106,7 @@ export default function AdminLayout({ title: titleProp, authContext, children })
           navigatingTo={navigatingTo}
           setNavigatingTo={setNavigatingTo}
           user={sidebarUser}
+          authContext={authContext}
           onProfileClick={handleProfileClick}
           onSettingsClick={handleSettingsClick}
           onSignOutClick={handleSignOut}

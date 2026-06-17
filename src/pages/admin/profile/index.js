@@ -80,7 +80,12 @@ export default function AdminProfile({ authContext }) {
                     {user.email || "—"}
                   </p>
                   <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
-                    {user.isAdmin && (
+                    {user.roleLabel && (
+                      <Badge variant="default" className="text-xs">
+                        {user.roleLabel}
+                      </Badge>
+                    )}
+                    {user.isAdmin && !user.roleLabel && (
                       <Badge variant="default" className="text-xs">
                         Admin
                       </Badge>

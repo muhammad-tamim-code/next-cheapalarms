@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router';
-import { CheckCircle2, Mail, ArrowRight, Home } from 'lucide-react';
+import { CheckCircle2, Mail, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { BRAND } from '../../config/brand';
 
 export default function QuoteRequestSuccessPage() {
   const router = useRouter();
@@ -52,26 +53,17 @@ export default function QuoteRequestSuccessPage() {
             </Link>
           )}
           
-          <div className="flex gap-3">
-            <Link
-              href="/products/sample"
-              className="flex-1 border border-border text-foreground rounded-xl px-6 py-3 font-semibold hover:bg-muted transition-colors text-center"
-            >
-              Request Another Quote
-            </Link>
-            <Link
-              href="/"
-              className="flex-1 border border-border text-foreground rounded-xl px-6 py-3 font-semibold hover:bg-muted transition-colors text-center flex items-center justify-center gap-2"
-            >
-              <Home className="h-4 w-4" />
-              Home
-            </Link>
-          </div>
+          <Link
+            href="/quote"
+            className="block w-full border border-border text-foreground rounded-xl px-6 py-3 font-semibold hover:bg-muted transition-colors text-center"
+          >
+            Request Another Quote
+          </Link>
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground">
           Didn&#39;t receive the email? Check your spam folder or{' '}
-          <a href="mailto:support@cheapalarms.com.au" className="text-primary underline">
+          <a href={`mailto:${BRAND.supportEmail}`} className="text-primary underline">
             contact support
           </a>
         </p>

@@ -35,25 +35,33 @@ export function ProductListCard({
 
         {/* Content Area */}
         <div className="flex-1 min-w-0">
-          <div className="flex justify-between items-start mb-1">
-            <h3 className="font-semibold text-sm truncate pr-2">
-              {name} {quantity > 1 && `(x${quantity})`}
-              {required && <span className="text-error ml-1">*</span>}
-            </h3>
-            <div className="shrink-0 ml-2">
-              <StatusPill status={status} />
+          <div className="flex justify-between items-start mb-1 gap-2">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-sm text-foreground truncate">
+                {name}
+              </h3>
+              {quantity > 1 && (
+                <span className="mt-0.5 inline-block text-[11px] font-medium text-muted-foreground">
+                  {quantity} units
+                </span>
+              )}
+            </div>
+            <div className="shrink-0">
+              <StatusPill status={status} required={required} />
             </div>
           </div>
 
           {/* Helper Text */}
           <p className={`text-xs mb-3 ${hasError ? 'text-error font-medium' : 'text-muted-foreground'}`}>
             {hasError 
-              ? "Action required" 
+              ? "Photo required to submit" 
               : status === 'skipped' 
                 ? 'Skipped (no photo)' 
                 : status === 'ready'
                   ? `${photos.length} photo${photos.length !== 1 ? 's' : ''} added`
-                  : 'Tap to add photos'
+                  : required
+                    ? 'Tap to take a photo'
+                    : 'Tap to add (optional)'
             }
           </p>
 

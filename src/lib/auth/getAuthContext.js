@@ -7,15 +7,27 @@ import { AUTH_TIMEOUT } from "../api/constants";
 import { getWpBase } from "../api/wp-proxy";
 import { TOKEN_COOKIE } from "../wp";
 
+/** Per-request memo so multiple getServerSideProps helpers don’t each call /auth/me */
+const REQ_AUTH_CACHE = Symbol.for("cheapalarms.authContext");
+
 export async function getAuthContext(req) {
   if (!req?.headers?.cookie) {
     return null;
   }
 
+  if (req[REQ_AUTH_CACHE] !== undefined) {
+    return req[REQ_AUTH_CACHE];
+  }
+
+  const markNull = () => {
+    req[REQ_AUTH_CACHE] = null;
+    return null;
+  };
+
   // Check if cookie contains the token
   const hasToken = req.headers.cookie.includes(`${TOKEN_COOKIE}=`);
   if (!hasToken) {
-    return null;
+    return markNull();
   }
 
   const wpBase = getWpBase();
@@ -28,7 +40,8 @@ export async function getAuthContext(req) {
     let response;
     if (!wpBase) {
       console.error('[getAuthContext] WP API base not configured');
-      return null;
+      clearTimeout(timeoutId);
+      return markNull();
     }
     try {
       // Extract only token cookie to ensure clean format
@@ -50,19 +63,19 @@ export async function getAuthContext(req) {
       console.error('[getAuthContext] Fetch error:', fetchError.message);
       if (fetchError.name === 'AbortError') {
         console.error('[getAuthContext] Request timed out to', wpBase);
-        return null;
+        return markNull();
       }
       throw fetchError;
     }
     clearTimeout(timeoutId);
 
     if (response.status === 401) {
-      return null;
+      return markNull();
     }
     if (!response.ok) {
       const text = await response.text().catch(() => 'Unable to read error');
       console.error('[getAuthContext] WordPress error', response.status, response.statusText, text.substring(0, 200));
-      return null;
+      return markNull();
     }
 
     let data;
@@ -70,26 +83,33 @@ export async function getAuthContext(req) {
       data = await response.json();
     } catch (jsonError) {
       console.error('[getAuthContext] Failed to parse JSON response:', jsonError.message);
-      return null;
+      return markNull();
     }
-    
+
     if (!data?.ok) {
       console.error('[getAuthContext] WordPress response not ok:', data?.code || 'unknown');
-      return null;
+      return markNull();
     }
-    
-    return {
+
+    const ctx = {
       id: data.id,
       email: data.email,
       displayName: data.displayName,
       avatar: data.avatar || null,
+      roleKey: data.role_key || null,
+      roleLabel: data.role_label || null,
       roles: data.roles || [],
+      permissions: data.permissions || [],
       capabilities: data.capabilities || [],
       isAdmin: data.is_admin === true,
       isCustomer: data.is_customer === true,
+      allowedLocationIds: data.allowed_location_ids || [],
     };
+    req[REQ_AUTH_CACHE] = ctx;
+    return ctx;
   } catch (err) {
     console.error('[getAuthContext] Exception', err?.message || err);
+    req[REQ_AUTH_CACHE] = null;
     return null;
   }
 }

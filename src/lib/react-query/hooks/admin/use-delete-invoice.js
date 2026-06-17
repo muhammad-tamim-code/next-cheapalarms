@@ -11,7 +11,7 @@ export function useDeleteInvoice() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: async ({ invoiceId, locationId, scope = 'both' }) => {
+    mutationFn: async ({ invoiceId, locationId, scope = 'local' }) => {
       // Use Next.js API route instead of direct wpFetch
       // The API route runs server-side and can read httpOnly cookies
       const res = await fetch(`/api/admin/invoices/${invoiceId}/delete`, {

@@ -19,20 +19,20 @@ export function useCustomersListState(initialData = {}) {
   const { initialWpUsers = [], initialGhlContacts = [] } = initialData;
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState("ghl");
+  const [activeTab, setActiveTab] = useState("wp");
   const [q, setQ] = useState("");
   const [inviting, setInviting] = useState({});
   const [refreshing, setRefreshing] = useState(false);
   const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [deleteScope, setDeleteScope] = useState("both");
+  const [deleteScope, setDeleteScope] = useState("local");
   const [deleteGhlContactDialogOpen, setDeleteGhlContactDialogOpen] =
     useState(false);
   const [ghlContactToDelete, setGhlContactToDelete] = useState(null);
   const [locationId, setLocationId] = useState("");
   const [selectedUserIds, setSelectedUserIds] = useState(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  const [bulkDeleteScope, setBulkDeleteScope] = useState("both");
+  const [bulkDeleteScope, setBulkDeleteScope] = useState("local");
   const [deleteByEmailDialogOpen, setDeleteByEmailDialogOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 

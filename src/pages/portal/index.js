@@ -5,6 +5,7 @@ import { PortalSidebar } from "../../components/portal/layout/PortalSidebar";
 import { OverviewView } from "../../components/portal/views/OverviewView";
 import { EstimatesListView } from "../../components/portal/views/EstimatesListView";
 import { EstimateDetailView } from "../../components/portal/views/EstimateDetailView";
+import { PhotosView } from "../../components/portal/views/PhotosView";
 import { PaymentsView } from "../../components/portal/views/PaymentsView";
 import { SupportView } from "../../components/portal/views/SupportView";
 import { PreferencesView } from "../../components/portal/views/PreferencesView";
@@ -17,6 +18,7 @@ import { usePortalState } from "../../hooks/usePortalState";
 import { ExpiredInviteMessage } from "../../components/portal/ExpiredInviteMessage";
 import { PortalErrorBoundary } from "../../components/portal/PortalErrorBoundary";
 import { Button } from "../../components/ui/button";
+import { BRAND } from "../../config/brand";
 
 export default function PortalPage({ initialStatus, initialError, initialEstimateId, initialEstimates }) {
   const router = useRouter();
@@ -44,6 +46,7 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
     resumeEstimate,
     missionSteps,
     photoItems,
+    photoBadgeCount,
     activityFeed,
     activeEstimate,
     overviewEstimate,
@@ -53,7 +56,7 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
   return (
     <>
       <Head>
-        <title>Customer Portal • CheapAlarms</title>
+        <title>Customer Portal • {BRAND.name}</title>
       </Head>
       <main className="light h-screen w-full bg-background text-foreground overflow-hidden">
         {/* Force light theme - portals don't support theme switching */}
@@ -68,6 +71,8 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
             estimateId={estimateId}
             onBackToList={handleBackToList}
             support={view?.support}
+            badges={{ photos: photoBadgeCount }}
+            onPhotosClick={handleNavigateToPhotos}
           />
 
           <section className="flex-1 overflow-y-auto px-6 py-10 space-y-6">
@@ -209,6 +214,18 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
                   </div>
                 )}
               </>
+            )}
+
+            {/* Photos View - dedicated route for the install-photo workflow */}
+            {activeNav === "photos" && (
+              <PhotosView
+                estimateId={estimateId}
+                view={view}
+                estimate={activeEstimate}
+                loading={loading || estimateLoading}
+                error={error || estimateError?.message}
+                onBack={handleBackToList}
+              />
             )}
 
             {/* Payments View */}

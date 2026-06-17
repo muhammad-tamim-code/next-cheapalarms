@@ -27,6 +27,11 @@ export function BookingCard({ estimateId, locationId, inviteToken, booking, work
   const [time, setTime] = useState("");
   const [notes, setNotes] = useState("");
   const [showNotes, setShowNotes] = useState(false);
+  // Today's date after mount (minDate); must run before any conditional returns (rules-of-hooks)
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    setToday(new Date().toISOString().split("T")[0]);
+  }, []);
 
   // If already booked, show confirmation
   if (booking && booking.status === 'scheduled') {
@@ -185,10 +190,6 @@ export function BookingCard({ estimateId, locationId, inviteToken, booking, work
       });
     }
   };
-
-  // Compute today's date after mount to avoid SSR hydration mismatch
-  const [today, setToday] = useState(""); // empty default is safe for minDate
-  useEffect(() => { setToday(new Date().toISOString().split("T")[0]); }, []);
 
   return (
     <Card className="shadow-elevated animate-in fade-in duration-300">

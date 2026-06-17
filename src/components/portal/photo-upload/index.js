@@ -13,5 +13,6 @@ export { SkipSection } from './SkipSection';
 export { StatusPill } from './StatusPill';
 export { ProgressBar } from './ProgressBar';
 export { StickySubmitBar } from './StickySubmitBar';
+export * from './photo-constants';
 export * from './utils';
 

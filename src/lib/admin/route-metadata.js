@@ -23,6 +23,7 @@ export const routeMetadata = {
   "/admin/invoices": { title: "Invoices", icon: Receipt },
   "/admin/invites": { title: "Invites", icon: Mail },
   "/admin/customers": { title: "Customers", icon: Users },
+  "/admin/team": { title: "Team", icon: Users },
   "/admin/settings": { title: "Settings", icon: Settings },
   "/admin/integrations": { title: "Integrations", icon: Plug },
   "/admin/logs": { title: "Logs", icon: ScrollText },

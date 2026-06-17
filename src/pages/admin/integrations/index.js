@@ -1,4 +1,5 @@
 import Head from "next/head";
+import Link from "next/link";
 import AdminLayout from "../../../components/admin/layout/AdminLayout";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
@@ -120,8 +121,14 @@ export default function AdminIntegrations({ authContext }) {
               <div className="flex items-center gap-2 rounded-md bg-muted/50 p-3">
                 <ShieldCheck className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs font-medium text-foreground">Configured via environment</p>
-                  <p className="text-xs text-muted-foreground">API key and Location ID are set in server configuration.</p>
+                  <p className="text-xs font-medium text-foreground">Credentials in WordPress or server config</p>
+                  <p className="text-xs text-muted-foreground">
+                    Save API key and Location ID under{" "}
+                    <Link href="/admin/settings" className="underline underline-offset-2 hover:text-foreground">
+                      Settings
+                    </Link>
+                    , or set them via environment / secrets.php (database wins when both exist).
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">

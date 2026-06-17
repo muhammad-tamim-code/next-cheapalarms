@@ -20,7 +20,7 @@ export function DeleteDialog({
   itemName,
   isLoading,
   showScopeSelection = true,
-  scope = 'both',
+  scope = 'local',
   onScopeChange,
   trashMode = false,
 }) {

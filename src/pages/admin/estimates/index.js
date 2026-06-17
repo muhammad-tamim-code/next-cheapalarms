@@ -1,5 +1,4 @@
 import Head from "next/head";
-import dynamic from "next/dynamic";
 import { Settings, Plus, Download, FileText } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import AdminLayout from "../../../components/admin/layout/AdminLayout";
@@ -15,12 +14,6 @@ import { BulkDeleteDialog } from "../../../components/admin/BulkDeleteDialog";
 import { EstimateActionsMenu } from "../../../components/admin/EstimateActionsMenu";
 import { TrashView } from "../../../components/admin/TrashView";
 import { FloatingActionBar } from "../../../components/admin/FloatingActionBar";
-import { TimeRangeSelector } from "../../../components/admin/TimeRangeSelector";
-
-const EstimatesChart = dynamic(
-  () => import("../../../components/admin/EstimatesChart").then((m) => m.EstimatesChart),
-  { ssr: false }
-);
 import { Checkbox } from "../../../components/ui/checkbox";
 import { useEstimatesListState } from "../../../lib/admin/useEstimatesListState";
 import { DEFAULT_CURRENCY } from "../../../lib/admin/constants";
@@ -38,8 +31,6 @@ export default function EstimatesListPage({ authContext }) {
     setPage,
     locationId,
     pageSize,
-    chartRange,
-    setChartRange,
     deleteDialogOpen,
     setDeleteDialogOpen,
     estimateToDelete,
@@ -59,9 +50,6 @@ export default function EstimatesListPage({ authContext }) {
     trashLoading,
     trashError,
     refetchTrash,
-    chartData,
-    chartLoading,
-    chartError,
     estimates,
     total,
     totalPages,
@@ -126,25 +114,6 @@ export default function EstimatesListPage({ authContext }) {
       </Head>
       <AdminLayout title="Estimates" authContext={authContext}>
         <div className="space-y-6">
-          {/* Chart Section - Only show when not in trash */}
-          {activeTab !== "trash" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Overview</h2>
-                  <p className="text-sm text-muted-foreground">Track estimate activity over time</p>
-                </div>
-                <TimeRangeSelector value={chartRange} onChange={setChartRange} />
-              </div>
-              <EstimatesChart 
-                data={chartData?.data} 
-                isLoading={chartLoading}
-                error={chartError}
-                range={chartRange}
-              />
-            </div>
-          )}
-
           {/* Page Header */}
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-transparent rounded-2xl -z-10" />

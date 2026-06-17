@@ -13,7 +13,7 @@ export function useDeleteEstimate() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: async ({ estimateId, locationId, scope = 'both' }) => {
+    mutationFn: async ({ estimateId, locationId, scope = 'local' }) => {
       // Use Next.js API route instead of direct wpFetch
       // The API route runs server-side and can read httpOnly cookies
       const res = await fetch(`/api/admin/estimates/${estimateId}/delete`, {
@@ -82,7 +82,7 @@ export function useDeleteEstimate() {
         router.push('/admin/estimates');
       }
       
-      const scope = variables.scope || 'both';
+      const scope = variables.scope || 'local';
       const isLocalDelete = scope === 'local' || scope === 'both';
       
       if (isLocalDelete) {

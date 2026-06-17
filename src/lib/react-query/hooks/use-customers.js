@@ -56,11 +56,11 @@ export function useGHLContacts({ limit = 50, enabled = true, initialData } = {})
     },
     enabled,
     initialData,
-    staleTime: initialData ? Infinity : 5 * 60 * 1000, // Infinity if we have initial data, else 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnMount: false,
+    staleTime: 2 * 60 * 1000, // 2 minutes — allows refetch after mutations
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: 'always',
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchOnReconnect: true,
   });
 }
 

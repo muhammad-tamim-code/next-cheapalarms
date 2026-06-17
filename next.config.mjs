@@ -14,18 +14,6 @@ const nextConfig = {
     };
     return config;
   },
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-      },
-      {
-        protocol: "https",
-        hostname: "cdn.coverr.co",
-      },
-    ],
-  },
   turbopack: {
     resolveAlias: {
       "@": resolve(__dirname, "src"),

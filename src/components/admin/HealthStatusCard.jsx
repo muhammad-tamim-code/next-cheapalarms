@@ -24,6 +24,8 @@ export function HealthStatusCard({ showRefreshButton = true, autoRefresh = false
       case "ok":
       case "healthy":
         return <CheckCircle2 className="h-4 w-4 text-success" />;
+      case "skipped":
+        return <Clock className="h-4 w-4 text-muted-foreground" />;
       case "degraded":
         return <AlertCircle className="h-4 w-4 text-warning" />;
       case "error":
@@ -39,6 +41,8 @@ export function HealthStatusCard({ showRefreshButton = true, autoRefresh = false
       case "ok":
       case "healthy":
         return "text-success";
+      case "skipped":
+        return "text-muted-foreground";
       case "degraded":
         return "text-warning";
       case "error":
@@ -54,6 +58,8 @@ export function HealthStatusCard({ showRefreshButton = true, autoRefresh = false
       case "ok":
       case "healthy":
         return "OK";
+      case "skipped":
+        return "Skipped";
       case "degraded":
         return "Degraded";
       case "error":

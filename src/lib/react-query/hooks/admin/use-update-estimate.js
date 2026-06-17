@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../../api/apiFetch';
 import { DEFAULT_CURRENCY } from '../../../admin/constants';
+import { cleanDiscountForGhl, formatGhlLineItems } from '../../../admin/formatGhlEstimatePayload';
+import { BRAND } from '../../../../config/brand';
 
 /**
  * React Query hook for updating estimate items/prices
@@ -39,7 +41,7 @@ export function useUpdateEstimate() {
       const name40 = (current.title || 'Estimate').substring(0, 40);
       const title = current.title || 'ESTIMATE';
       
-      const businessDetails = current.businessDetails || [{ name: 'Cheap Alarms' }];
+      const businessDetails = current.businessDetails || [{ name: BRAND.name }];
       
       // Build contactDetails with required ID field (GHL requirement)
       const contactDetails = {
@@ -65,24 +67,11 @@ export function useUpdateEstimate() {
       const expiryDate = formatDate(current.expiryDate || Date.now() + 30 * 24 * 60 * 60 * 1000);
 
       // Format items
-      const formattedItems = items.map((item) => ({
-        name: item.name || '',
-        description: item.description || '',
-        currency: item.currency || currency,
-        amount: parseFloat(item.amount) || 0,
-        qty: parseInt(item.qty || item.quantity || 1, 10)
-      }));
+      const formattedItems = formatGhlLineItems(items, currency);
 
       // Prepare discount (use provided or existing)
-      // Use nullish coalescing to handle both null and undefined
       const discountData = discount ?? current.discount ?? { type: 'percentage', value: 0 };
-      
-      // Clean discount object - GHL only accepts 'type' and 'value' properties
-      // Remove any extra properties like 'name' or 'isDiscount' that come from DiscountModal
-      const cleanDiscount = {
-        type: discountData?.type || 'percentage',
-        value: parseFloat(discountData?.value) || 0
-      };
+      const cleanDiscount = cleanDiscountForGhl(discountData);
 
       const payload = {
         estimateId,

@@ -12,6 +12,7 @@ import { Badge } from "../../../components/ui/badge";
 import { Input } from "../../../components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../../components/ui/tabs";
 import { requireAdmin } from "../../../lib/auth/requireAdmin";
+import { hasPermission } from "../../../lib/auth/hasPermission";
 import { isAuthError, isPermissionError } from "../../../lib/admin/utils/error-handler";
 import { useCustomersListState } from "../../../lib/admin/useCustomersListState";
 import { Spinner } from "../../../components/ui/spinner";
@@ -29,6 +30,7 @@ export default function AdminCustomers({
   debugInfo,
   authContext,
 }) {
+  const canDestructive = hasPermission(authContext, "data.destructive");
   const {
     activeTab,
     setActiveTab,
@@ -128,15 +130,17 @@ export default function AdminCustomers({
                   "Refresh"
                 )}
               </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteByEmailDialogOpen(true)}
-                className="gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete by Email
-              </Button>
+              {hasPermission(authContext, "data.destructive") && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteByEmailDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete by Email
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -396,17 +400,19 @@ export default function AdminCustomers({
                                     : "—"}
                                 </td>
                                 <td className="px-3 py-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setUserToDelete(user);
-                                      setDeleteUserDialogOpen(true);
-                                    }}
-                                    className="text-error hover:text-error/80 hover:bg-error/10"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  {canDestructive && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setUserToDelete(user);
+                                        setDeleteUserDialogOpen(true);
+                                      }}
+                                      className="text-error hover:text-error/80 hover:bg-error/10"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                 </td>
                               </tr>
                             );
@@ -433,7 +439,7 @@ export default function AdminCustomers({
           </CardContent>
         </Card>
 
-        {activeTab === "wp" && (
+        {activeTab === "wp" && canDestructive && (
           <FloatingActionBar
             selectedCount={selectedUserIds.size}
             onClearSelection={() => setSelectedUserIds(new Set())}

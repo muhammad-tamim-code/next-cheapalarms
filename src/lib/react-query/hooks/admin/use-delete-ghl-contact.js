@@ -9,8 +9,6 @@ export function useDeleteGhlContact() {
 
   return useMutation({
     mutationFn: async ({ contactId, locationId }) => {
-      // Use Next.js API route instead of direct wpFetch
-      // The API route runs server-side and can read httpOnly cookies
       const res = await fetch(`/api/admin/ghl/contacts/${contactId}/delete`, {
         method: 'POST',
         credentials: 'include',
@@ -26,18 +24,16 @@ export function useDeleteGhlContact() {
         throw new Error(json?.error || json?.err || 'Delete failed');
       }
 
-      const data = json;
-
-      const ghlOk = data?.ghl?.ok === true;
-      if (!(data?.ok === true && ghlOk)) {
-        throw new Error(data?.error || data?.ghl?.error || 'Delete failed');
-      }
-
-      return data;
+      return json;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['ghl-contacts'] });
-      toast.success('GHL contact deleted successfully');
+      const warning = data?.ghl?.warning;
+      if (warning) {
+        toast.success('Contact removed', { description: 'Contact may have already been deleted from GHL.' });
+      } else {
+        toast.success('GHL contact deleted successfully');
+      }
     },
     onError: (error, variables) => {
       // Log error for debugging (sanitized in production)

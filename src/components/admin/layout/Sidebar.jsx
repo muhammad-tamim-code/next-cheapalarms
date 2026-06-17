@@ -4,30 +4,35 @@ import {
   LayoutDashboard,
   Package,
   FileText,
+  FilePlus2,
   Receipt,
   Mail,
   Users,
   Settings,
   Plug,
   ScrollText,
+  UserCog,
 } from "lucide-react";
 import { Sidebar as UISidebar } from "../../ui/sidebar";
 import { navItems } from "../nav";
+import { hasPermission } from "../../../lib/auth/hasPermission";
 
 // Map icons to navigation items
 const iconMap = {
   "/admin": LayoutDashboard,
   "/admin/products": Package,
   "/admin/estimates": FileText,
+  "/admin/quotes": FilePlus2,
   "/admin/invoices": Receipt,
   "/admin/invites": Mail,
   "/admin/customers": Users,
+  "/admin/team": UserCog,
   "/admin/settings": Settings,
   "/admin/integrations": Plug,
   "/admin/logs": ScrollText,
 };
 
-export function Sidebar({ navigatingTo, setNavigatingTo, user, onProfileClick, onSettingsClick, onSignOutClick }) {
+export function Sidebar({ navigatingTo, setNavigatingTo, user, authContext, onProfileClick, onSettingsClick, onSignOutClick }) {
   const router = useRouter();
   const activeItem = router.pathname;
   const navigationRef = useRef(null);
@@ -36,8 +41,11 @@ export function Sidebar({ navigatingTo, setNavigatingTo, user, onProfileClick, o
   const [localNavigatingTo, setLocalNavigatingTo] = useState(null);
   const effectiveNavigatingTo = navigatingTo !== undefined ? navigatingTo : localNavigatingTo;
 
-  // Map nav items with icons
-  const adminNavItems = navItems.map((item) => ({
+  const visibleNavItems = navItems.filter(
+    (item) => !item.permission || hasPermission(authContext, item.permission)
+  );
+
+  const adminNavItems = visibleNavItems.map((item) => ({
     ...item,
     icon: iconMap[item.href] || LayoutDashboard,
   }));

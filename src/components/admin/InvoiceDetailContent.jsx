@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, memo } from "react";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { useAdminInvoice, useSendInvoice, useSyncPaymentToXero, useXeroStatus, useDeleteInvoice } from "../../lib/react-query/hooks/admin";
 import { useEstimatePhotos } from "../../lib/react-query/hooks/use-estimate-photos";
@@ -8,7 +9,7 @@ import { PhotoGallery } from "./PhotoGallery";
 import { DeleteDialog } from "./DeleteDialog";
 import { DEFAULT_CURRENCY } from "../../lib/admin/constants";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, Trash2 } from "lucide-react";
+import { CheckCircle2, XCircle, Trash2, ExternalLink } from "lucide-react";
 
 // Memoized table row component for performance
 const InvoiceTableRow = memo(function InvoiceTableRow({ 
@@ -179,11 +180,12 @@ export const InvoiceDetailContent = memo(function InvoiceDetailContent({ invoice
 
   const invoice = data?.ok ? data : null;
   const linkedEstimate = invoice?.linkedEstimate;
+  const isXeroDirect = invoice?.invoiceSource === "xero_direct";
   
   // Row selection state
   const [selectedItem, setSelectedItem] = useState(null);
   const [deleteInvoiceDialogOpen, setDeleteInvoiceDialogOpen] = useState(false);
-  const [deleteScope, setDeleteScope] = useState('both');
+  const [deleteScope, setDeleteScope] = useState('local');
   const [xeroPaymentTransactionId, setXeroPaymentTransactionId] = useState('');
   
   // Fetch photos from linked estimate (photos are stored against estimates, not invoices)
@@ -340,6 +342,19 @@ export const InvoiceDetailContent = memo(function InvoiceDetailContent({ invoice
 
   return (
     <div className="space-y-8">
+      {isXeroDirect && (
+        <div
+          className="rounded-lg border border-info/40 bg-info-bg px-4 py-3 text-sm text-foreground"
+          role="status"
+        >
+          <p className="font-semibold text-foreground">Xero-direct invoice</p>
+          <p className="mt-1 text-muted-foreground">
+            This receivable was created in Xero from the portal and is not stored in GoHighLevel.
+            Customers pay via the customer portal. Sending the invoice through GHL is not available
+            for this record.
+          </p>
+        </div>
+      )}
       {/* Header */}
       <div className="rounded-xl border border-border/60 bg-card p-8 shadow-md">
         <div className="flex items-start justify-between">
@@ -561,29 +576,41 @@ export const InvoiceDetailContent = memo(function InvoiceDetailContent({ invoice
             </div>
           )}
 
+          {invoice.xeroInvoiceOnlineUrl && (
+            <div className="rounded-xl border border-border/60 bg-card p-6 shadow-md">
+              <h3 className="mb-3 text-sm font-bold text-foreground tracking-wide uppercase">Xero</h3>
+              <a
+                href={invoice.xeroInvoiceOnlineUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open this invoice in Xero (opens in a new tab)"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted/40"
+              >
+                <ExternalLink className="h-4 w-4 text-primary" aria-hidden />
+                Open invoice in Xero
+              </a>
+              {invoice.xeroInvoiceNumber && (
+                <p className="mt-2 text-center text-xs text-muted-foreground">
+                  Xero #{invoice.xeroInvoiceNumber}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Actions */}
           <div className="rounded-xl border border-border/60 bg-card p-6 shadow-md">
             <h3 className="mb-4 text-sm font-bold text-foreground tracking-wide uppercase">Actions</h3>
             <div className="space-y-3">
-              <button
+              <Button
+                type="button"
+                variant="default"
+                className="h-auto min-h-11 w-full rounded-lg px-4 py-3 text-sm font-semibold shadow-sm hover:shadow-md"
                 onClick={handleSendInvoice}
-                disabled={sendInvoiceMutation.isPending}
-                className="w-full rounded-lg px-4 py-3 text-sm font-semibold text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ 
-                  backgroundColor: 'hsl(280, 45%, 50%)',
-                  // Matte texture: no shadows, flat appearance
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.disabled) {
-                    e.currentTarget.style.backgroundColor = 'hsl(280, 45%, 47%)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'hsl(280, 45%, 50%)';
-                }}
+                disabled={sendInvoiceMutation.isPending || isXeroDirect}
+                title={isXeroDirect ? "Not available for Xero-direct invoices" : undefined}
               >
                 {sendInvoiceMutation.isPending ? "Sending..." : "Send Invoice"}
-              </button>
+              </Button>
               
               {/* Xero Payment Sync */}
               <div className="pt-4 border-t-2 border-border/60">

@@ -10,7 +10,7 @@ export default createWpProxyHandler((req) => {
     throw new Error("Invalid invoiceId");
   }
   // Validate invoiceId format (alphanumeric and hyphens only) to prevent path injection
-  if (!/^[a-zA-Z0-9-]+$/.test(invoiceId)) {
+  if (!/^[a-zA-Z0-9_-]+$/.test(invoiceId)) {
     throw new Error("Invalid invoiceId format");
   }
   return `/ca/v1/admin/invoices/${encodeURIComponent(invoiceId)}/sync`;

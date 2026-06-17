@@ -1,54 +1,60 @@
 /**
- * LoginCard Component
- * Glassmorphism card container for login form
+ * LoginCard — two-column split layout (hero + form)
  */
 
 import { Shield } from "lucide-react";
 
 export function LoginCard({ children }) {
   return (
-    <div className="relative z-10 w-full max-w-md animate-fade-in-up px-4 sm:px-0">
-      <div className="relative rounded-2xl sm:rounded-3xl border border-white/20 bg-white/70 backdrop-blur-xl p-6 sm:p-8 shadow-2xl shadow-black/10 transition-all duration-500 hover:shadow-3xl hover:shadow-primary/20 hover:-translate-y-1">
-        {/* Gradient border glow */}
-        <div className="absolute -inset-0.5 rounded-3xl bg-gradient-to-r from-primary/50 via-secondary/50 to-primary/50 opacity-20 blur-sm -z-10" />
-        
-        {/* Branding Section */}
-        <header className="mb-6 sm:mb-8 text-center space-y-2 sm:space-y-3">
-          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary to-secondary p-2.5 sm:p-3 shadow-lg shadow-primary/30 mb-1 sm:mb-2">
-            <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-white" aria-hidden="true" />
+    <div className="relative z-10 w-full max-w-5xl animate-fade-in-up px-4 sm:px-6">
+      <div className="flex min-h-[32rem] flex-col overflow-hidden rounded-2xl bg-card shadow-2xl shadow-foreground/10 md:min-h-[28rem] md:flex-row md:rounded-3xl">
+        {/* Left — welcome / brand */}
+        <aside
+          className="relative flex flex-col justify-center overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-secondary px-8 py-10 text-white md:w-[48%] md:px-12 md:py-14"
+        >
+          <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+            <div className="absolute -left-8 top-8 h-3 w-40 rotate-[35deg] rounded-full bg-white/15" />
+            <div className="absolute left-4 top-24 h-3 w-52 rotate-[35deg] rounded-full bg-white/20" />
+            <div className="absolute -left-4 top-40 h-3 w-44 rotate-[35deg] rounded-full bg-white/10" />
+            <div className="absolute left-8 bottom-20 h-3 w-48 rotate-[35deg] rounded-full bg-white/15" />
+            <div className="absolute right-0 top-1/2 h-64 w-64 -translate-y-1/2 translate-x-1/3 rounded-full bg-white/10 blur-2xl" />
           </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              CheapAlarms
-            </h1>
-            <p className="mt-1 sm:mt-2 text-xs sm:text-sm font-medium text-muted-foreground tracking-wider uppercase">
-              Secure Access Portal
+
+          <div className="relative z-10 space-y-4">
+            <div className="inline-flex items-center justify-center rounded-2xl bg-white/15 p-3 backdrop-blur-sm">
+              <Shield className="h-8 w-8 text-white" aria-hidden="true" />
+            </div>
+            <h2 className="text-3xl font-bold leading-tight tracking-tight md:text-4xl">
+              Welcome back
+            </h2>
+            <p className="max-w-sm text-sm leading-relaxed text-white/85 md:text-base">
+              Sign in to manage quotes, customer portals, and installations — everything
+              for your security business in one place.
             </p>
           </div>
-        </header>
+        </aside>
 
-        {/* Form Content */}
-        {children}
+        {/* Right — login form */}
+        <div className="flex flex-1 flex-col justify-center bg-card px-8 py-10 md:px-12 md:py-14">
+          {children}
+        </div>
       </div>
-      
-      {/* CSS Animations */}
+
       <style jsx>{`
         @keyframes fade-in-up {
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(16px);
           }
           to {
             opacity: 1;
             transform: translateY(0);
           }
         }
-        
         .animate-fade-in-up {
-          animation: fade-in-up 0.6s ease-out;
+          animation: fade-in-up 0.5s ease-out;
         }
       `}</style>
     </div>
   );
 }
-

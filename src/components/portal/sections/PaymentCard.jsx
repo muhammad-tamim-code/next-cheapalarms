@@ -3,11 +3,10 @@ import { CreditCard, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/router";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
+import { apiFetch } from "../../../lib/api/apiFetch";
+import { Spinner } from "../../ui/spinner";
 import { PaymentFormInner } from "./PaymentCard/PaymentFormInner";
 import { AmountBlock } from "./PaymentCard/AmountBlock";
-
-const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
-const stripePromise = STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null;
 
 /**
  * Helper function to format amounts (moved outside component to prevent recreation on every render)
@@ -31,6 +30,34 @@ function formatAmount(amt) {
 export function PaymentCard({ estimateId, locationId, inviteToken, payment, workflow, invoice, minimumPaymentInfo }) {
   // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS (React Rules of Hooks)
   const router = useRouter();
+  const envPk = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+  /** When env is unset: null = fetch in progress, "" or pk after fetch */
+  const [remotePublishableKey, setRemotePublishableKey] = useState(() => (envPk ? "" : null));
+
+  useEffect(() => {
+    if (envPk) return;
+    let cancelled = false;
+    apiFetch("/api/stripe/publishable-key")
+      .then((data) => {
+        if (cancelled) return;
+        const k = data?.publishableKey && String(data.publishableKey).trim();
+        setRemotePublishableKey(k || "");
+      })
+      .catch(() => {
+        if (!cancelled) setRemotePublishableKey("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [envPk]);
+
+  const activePublishableKey = envPk || (remotePublishableKey !== null ? remotePublishableKey : "");
+  const publishableKeyLoading = !envPk && remotePublishableKey === null;
+  const stripePromise = useMemo(
+    () => (activePublishableKey ? loadStripe(activePublishableKey) : null),
+    [activePublishableKey],
+  );
+
   const [shouldReload, setShouldReload] = useState(false);
   const [customAmount, setCustomAmount] = useState(null);
   const [useCustomAmount, setUseCustomAmount] = useState(false);
@@ -333,6 +360,15 @@ export function PaymentCard({ estimateId, locationId, inviteToken, payment, work
   // SECURITY: Don't show payment form if no remaining balance
   if (remainingBalance !== null && remainingBalance <= 0) {
     return null; // No remaining balance to pay
+  }
+
+  if (publishableKeyLoading) {
+    return (
+      <div className="rounded-[28px] border border-border bg-surface p-8 shadow-[0_25px_60px_rgba(15,23,42,0.08)] flex flex-col items-center justify-center gap-3">
+        <Spinner size="md" />
+        <p className="text-sm text-muted-foreground">Loading payment options…</p>
+      </div>
+    );
   }
 
   if (!stripePromise) {

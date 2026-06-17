@@ -1,11 +1,12 @@
 import { AlertCircle, Mail } from "lucide-react";
+import { BRAND } from "../../config/brand";
 
 /**
  * Friendly error message for expired invite tokens
  * Shows actionable next steps - Contact Support via mailto
  */
 export function ExpiredInviteMessage({ estimateId }) {
-  const mailtoUrl = `mailto:support@cheapalarms.com.au?subject=${encodeURIComponent(
+  const mailtoUrl = `mailto:${BRAND.supportEmail}?subject=${encodeURIComponent(
     `Portal invite link expired${estimateId ? ` - Estimate #${estimateId}` : ""}`
   )}`;
 
@@ -35,8 +36,8 @@ export function ExpiredInviteMessage({ estimateId }) {
             </p>
             <p className="text-sm text-foreground">
               If you continue having issues, please contact our support team at{" "}
-              <a href="mailto:support@cheapalarms.com.au" className="font-semibold text-primary hover:underline">
-                support@cheapalarms.com.au
+              <a href={`mailto:${BRAND.supportEmail}`} className="font-semibold text-primary hover:underline">
+                {BRAND.supportEmail}
               </a>
               {estimateId && (
                 <>

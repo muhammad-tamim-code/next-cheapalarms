@@ -81,9 +81,9 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
   } = useEstimate({
     estimateId: estimateId || null,
     inviteToken: inviteToken || null,
-    // Only fetch full estimate (items/pricing) when user is on the estimate detail view.
-    // This avoids heavy GHL-backed calls during initial portal load and on non-detail sections.
-    enabled: !!estimateId && router.isReady && activeNav === "estimates",
+    // Only fetch full estimate (items/pricing) when user is on a section that
+    // needs line-items. This avoids heavy GHL-backed calls on overview/payments/etc.
+    enabled: !!estimateId && router.isReady && (activeNav === "estimates" || activeNav === "photos"),
     initialData: null,
   });
 
@@ -341,9 +341,21 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
   }, [estimateId, resumeEstimate, handleSelectEstimate, handleNavigateToSection]);
 
   const handleNavigateToPhotos = useCallback(() => {
-    if (!estimateId) return;
-    handleNavigateToSection("estimates");
-  }, [estimateId, handleNavigateToSection]);
+    // Photos is a dedicated section. If no estimate is selected yet, fall back
+    // to the most-recently-viewed one so the page actually has data to load.
+    if (!estimateId) {
+      if (resumeEstimate) {
+        const id = resumeEstimate.estimateId || resumeEstimate.id;
+        const params = new URLSearchParams();
+        params.set("estimateId", id);
+        params.set("section", "photos");
+        if (inviteToken) params.set("inviteToken", inviteToken);
+        router.push(`/portal?${params.toString()}`);
+      }
+      return;
+    }
+    handleNavigateToSection("photos");
+  }, [estimateId, handleNavigateToSection, resumeEstimate, inviteToken, router]);
 
   // Navigate to next/previous estimate (client-side only, no URL changes on overview)
   const handleNextEstimate = useCallback(() => {
@@ -446,6 +458,36 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
     
     return Object.values(grouped);
   }, [estimateData, view]);
+
+  // Sidebar badge: count of required items that still need a photo. Respects
+  // itemsMeta overrides — auto-detected `isHeading` packages are excluded, and
+  // `photoRequired: false` items don't contribute. Returns null when the data
+  // isn't loaded yet so the sidebar simply doesn't render a misleading badge.
+  const photoBadgeCount = useMemo(() => {
+    if (!estimateId) return null;
+    const items = estimateData?.ok ? estimateData.items || [] : [];
+    if (items.length === 0) return null;
+    const itemsMeta = view?.itemsMeta || {};
+    const uploadedPhotos = view?.photos?.items || [];
+    const uploadedCounts = {};
+    uploadedPhotos.forEach((photo) => {
+      const name = photo.itemName || "Unknown";
+      uploadedCounts[name] = (uploadedCounts[name] || 0) + 1;
+    });
+    const seen = new Set();
+    let pending = 0;
+    items.forEach((item) => {
+      const name = item.name || "Unknown Item";
+      if (seen.has(name)) return;
+      seen.add(name);
+      const meta = itemsMeta[name];
+      if (meta?.isHeading) return;
+      const required = meta?.photoRequired ?? true;
+      if (!required) return;
+      if ((uploadedCounts[name] || 0) === 0) pending += 1;
+    });
+    return pending > 0 ? pending : null;
+  }, [estimateId, estimateData, view]);
 
   const activityFeed = useMemo(() => {
     const entries = [];
@@ -660,6 +702,7 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
     resumeEstimate,
     missionSteps,
     photoItems,
+    photoBadgeCount,
     activityFeed,
     activeEstimate,
     overviewEstimate,

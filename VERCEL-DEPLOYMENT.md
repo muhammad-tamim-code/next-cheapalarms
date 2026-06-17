@@ -1,213 +1,70 @@
-# Vercel Deployment Guide - Next.js Frontend
+# Vercel Deployment Guide - Next.js Portal
 
-## ✅ **Ready to Deploy!**
-
-Your Next.js app is configured for Vercel deployment.
-
----
-
-## 🚀 **DEPLOYMENT STEPS**
-
-### **Method A: Vercel Dashboard** (Recommended - 5 min)
-
-1. **Go to:** https://vercel.com/new
-
-2. **Import Repository:**
-   - Connect GitHub/GitLab/Bitbucket
-   - OR: Upload folder directly (drag & drop)
-
-3. **Configure Project:**
-   ```
-   Framework Preset: Next.js (auto-detected)
-   Root Directory: next-app
-   Build Command: npm run build (auto-detected)
-   Output Directory: .next (auto-detected)
-   Install Command: npm install (auto-detected)
-   Node.js Version: 18.x or 20.x
-   ```
-
-4. **Environment Variables:**
-   
-   Click "Environment Variables" and add:
-   
-   | Name | Value |
-   |------|-------|
-   | `NEXT_PUBLIC_WP_URL` | `https://staging.cheapalarms.com.au/wp-json` |
-   | `NEXT_PUBLIC_GHL_LOCATION_ID` | `aLTXtdwNknfmEFo3WBIX` |
-   | `NODE_ENV` | `production` |
-
-5. **Click: Deploy**
-
-6. **Wait:** 3-5 minutes for build
-
-7. **Success!** You'll get a URL like:
-   ```
-   https://headless-cheapalarms.vercel.app
-   ```
+Portal host: **`portal.cheapalarms.com.au`**  
+WordPress API: **`https://cheapalarms.com.au/wp-json`**
 
 ---
 
-### **Method B: Vercel CLI** (Advanced)
+## Environment variables (Vercel)
 
-```bash
-cd next-app
+| Name | Value |
+|------|-------|
+| `NEXT_PUBLIC_WP_URL` | `https://cheapalarms.com.au/wp-json` |
+| `NEXT_PUBLIC_GHL_LOCATION_ID` | Your GHL location ID |
+| `NODE_ENV` | `production` |
 
-# Install Vercel CLI
-npm i -g vercel
+Set in: **Project → Settings → Environment Variables** (Production). Redeploy after changes.
 
-# Login
-vercel login
-
-# Deploy
-vercel --prod
-
-# Follow prompts
-```
+Local reference: `next-app/.env.production`
 
 ---
 
-## ✅ **After Deployment**
+## Custom domain
 
-### **Step 1: Get Your Vercel URL**
-
-Vercel will give you a URL like:
-```
-https://headless-cheapalarms-abc123.vercel.app
-```
-
-Or if you set custom domain:
-```
-https://portal.cheapalarms.com
-```
+1. Vercel → Project → Settings → Domains  
+2. Add: `portal.cheapalarms.com.au`  
+3. DNS: CNAME `portal` → `cname.vercel-dns.com`  
+4. Wait for SSL (5–60 min)
 
 ---
 
-### **Step 2: Update Backend CORS**
+## WordPress plugin CORS (on `cheapalarms.com.au`)
 
-**Edit on Plesk:**
-```
-File Manager → /httpdocs/wp-content/plugins/cheapalarms-plugin/config/secrets.php
-```
-
-**Add your Vercel URL to both arrays (lines 21 and 37):**
+Edit `config/instance.php` or `config/secrets.php` on the server:
 
 ```php
 'upload_allowed_origins' => [
     'https://cheapalarms.com.au',
-    'https://staging.cheapalarms.com.au',
-    'https://headless-cheapalarms-abc123.vercel.app',  // ← ADD THIS
-    'http://localhost',
-    'http://localhost:3000',
+    'https://portal.cheapalarms.com.au',
 ],
-
 'api_allowed_origins' => [
     'https://cheapalarms.com.au',
-    'https://staging.cheapalarms.com.au',
-    'https://headless-cheapalarms-abc123.vercel.app',  // ← ADD THIS
-    'http://localhost:3000',
+    'https://portal.cheapalarms.com.au',
 ],
+'frontend_url' => 'https://portal.cheapalarms.com.au',
 ```
 
-**Save the file.**
+See `PRODUCTION-CONFIG-CHECKLIST.md` in the plugin folder.
 
 ---
 
-## 🧪 **Testing**
+## Testing
 
-### **Test 1: Homepage**
-```
-Visit: https://your-vercel-url.vercel.app
-```
-Should show CheapAlarms homepage ✅
+| Test | URL |
+|------|-----|
+| WP health | `https://cheapalarms.com.au/wp-json/ca/v1/health` |
+| Portal login | `https://portal.cheapalarms.com.au/login` |
+| Admin | `https://portal.cheapalarms.com.au/admin` |
 
-### **Test 2: Admin Login**
-```
-Visit: https://your-vercel-url.vercel.app/admin
-Should redirect to: /login
-```
-
-Try logging in with WordPress admin credentials ✅
-
-### **Test 3: Customer Portal**
-```
-Visit: https://your-vercel-url.vercel.app/portal?invite_token=test
-```
-Should show portal or expired token message ✅
-
-### **Test 4: API Connection**
-- Open browser console (F12)
-- Try logging in
-- Check Network tab
-- Should see requests to: `staging.cheapalarms.com.au/wp-json/`
-- Should get responses (not CORS errors) ✅
+In browser DevTools → Network, API calls from the portal should proxy to `cheapalarms.com.au/wp-json/` (server-side). No CORS errors on login or photo upload.
 
 ---
 
-## 🔧 **Custom Domain** (Optional)
+## Checklist
 
-**After initial deployment:**
-
-1. **Vercel Dashboard → Your Project → Settings → Domains**
-
-2. **Add Domain:**
-   ```
-   portal.cheapalarms.com
-   ```
-
-3. **Update DNS:**
-   ```
-   Type: CNAME
-   Name: portal
-   Value: cname.vercel-dns.com
-   ```
-
-4. **Wait:** 5-60 min for DNS propagation
-
-5. **Vercel auto-configures SSL**
-
----
-
-## ✅ **Deployment Checklist**
-
-- [ ] `.env.production` created with WordPress URL
-- [ ] Code committed to Git (if using Git deploy)
-- [ ] Project deployed to Vercel
-- [ ] Environment variables set in Vercel
-- [ ] Build successful
-- [ ] Deployment live
-- [ ] Vercel URL obtained
-- [ ] Backend CORS updated with Vercel URL
-- [ ] Login tested
-- [ ] Portal tested
-- [ ] No CORS errors in console
-
----
-
-## 🎉 **Success Criteria**
-
-**Deployment successful when:**
-- ✅ Can access Vercel URL
-- ✅ Homepage loads
-- ✅ Admin login works
-- ✅ Portal displays data from WordPress
-- ✅ No CORS errors
-- ✅ Photos can upload
-
----
-
-## 📝 **Post-Deployment**
-
-**After everything works:**
-
-1. Update `secrets.php` with production URL
-2. Test complete workflow end-to-end
-3. Monitor Vercel logs for errors
-4. Set up custom domain (optional)
-5. Configure monitoring/analytics
-
----
-
-**Ready to deploy! Environment file is configured!** 🚀
-
-**Next: Push to Git or upload to Vercel!**
-
+- [ ] WordPress live on `cheapalarms.com.au` with plugin + secrets
+- [ ] `NEXT_PUBLIC_WP_URL` set on Vercel
+- [ ] `portal.cheapalarms.com.au` DNS + SSL
+- [ ] Plugin `frontend_url` + CORS updated
+- [ ] Stripe / Xero redirect URLs updated
+- [ ] Login + portal smoke test passed

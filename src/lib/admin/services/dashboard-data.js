@@ -142,17 +142,15 @@ function generateActivity(estimates) {
  */
 export async function getDashboardData(req) {
   try {
-    // Fetch estimates via admin endpoint (benefits from server-side caching)
-    const estimatesData = await wpFetch(`/ca/v1/admin/estimates?page=1&pageSize=100`, {
-      headers: cookieHeader(req),
-    });
+    const headers = cookieHeader(req);
+    // Parallelize admin estimates + product counts (Phase 0: fewer sequential WP round-trips)
+    const [estimatesData, productCounts] = await Promise.all([
+      wpFetch(`/ca/v1/admin/estimates?page=1&pageSize=100`, { headers }),
+      fetchProductCounts(req),
+    ]);
 
     const estimates = estimatesData?.items ?? [];
 
-    // Fetch product counts in parallel
-    const productCounts = await fetchProductCounts(req);
-
-    // Calculate and return dashboard data
     return {
       stats: calculateStats(estimates, productCounts),
       alerts: generateAlerts(estimates),

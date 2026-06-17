@@ -23,10 +23,10 @@ export function useInvoicesListState() {
   const [locationId, setLocationId] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState(null);
-  const [deleteScope, setDeleteScope] = useState("both");
+  const [deleteScope, setDeleteScope] = useState("local");
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  const [bulkDeleteScope, setBulkDeleteScope] = useState("both");
+  const [bulkDeleteScope, setBulkDeleteScope] = useState("local");
 
   const pageSize = DEFAULT_PAGE_SIZE;
   const invoiceIdFromQuery = router.query.invoiceId;

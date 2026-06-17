@@ -1,27 +1,17 @@
-import Header from '../components/landing/Header';
-import HeroSection from '../components/landing/HeroSection';
-import ProductCategories from '../components/landing/ProductCategories';
-import InteractiveDemo from '../components/landing/InteractiveDemo';
-import WhoIsThisForSection from '../components/landing/WhoIsThisForSection';
-import TrustSection from '../components/landing/TrustSection';
-import FAQSection from '../components/landing/FAQSection';
-import CTASection from '../components/landing/CTASection';
-import Footer from '../components/landing/Footer';
+/**
+ * Customer marketing pages live elsewhere (Astro). This Next app hosts the
+ * portal + admin/business UI; the bare domain just routes visitors to the
+ * minimal quote form so testing can begin immediately.
+ */
+export default function HomeRedirect() {
+  return null;
+}
 
-export default function HomePage() {
-  return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main>
-        <HeroSection />
-        <ProductCategories />
-        <InteractiveDemo />
-        <WhoIsThisForSection />
-        <TrustSection />
-        <FAQSection />
-        <CTASection />
-      </main>
-      <Footer />
-    </div>
-  );
+export async function getServerSideProps() {
+  return {
+    redirect: {
+      destination: "/quote",
+      permanent: false,
+    },
+  };
 }

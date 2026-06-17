@@ -118,22 +118,8 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    // Paradox calculator - disable unescaped entities (user-facing text with apostrophes)
-    files: ["**/paradox-calculator/**"],
-    rules: {
-      "react/no-unescaped-entities": "off",
-    },
-  },
-  {
     // Portal components - user-facing text with apostrophes/quotes
     files: ["**/portal/**", "**/pages/**", "**/design-system/**"],
-    rules: {
-      "react/no-unescaped-entities": "off",
-    },
-  },
-  {
-    // Products and marketing pages
-    files: ["**/pages/products/**", "**/pages/paradox-magellan/**", "**/pages/quote-request/**"],
     rules: {
       "react/no-unescaped-entities": "off",
     },

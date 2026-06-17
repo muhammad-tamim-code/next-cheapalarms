@@ -9,7 +9,7 @@ export function useBulkDeleteUsers() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ userIds, locationId, scope = 'both' }) => {
+    mutationFn: async ({ userIds, locationId, scope = 'local' }) => {
       // Use Next.js API route instead of direct wpFetch
       // The API route runs server-side and can read httpOnly cookies
       const res = await fetch('/api/admin/users/bulk-delete', {
@@ -57,7 +57,7 @@ export function useBulkDeleteUsers() {
     onSuccess: (data, variables) => {
       const deleted = data.deleted || 0;
       const errors = data.errors || [];
-      const scope = variables.scope || 'both';
+      const scope = variables.scope || 'local';
 
       // Invalidate queries to refetch fresh data
       queryClient.invalidateQueries({ queryKey: ['wp-users'] });

@@ -1,57 +1,74 @@
 /**
- * LoginForm Component
- * Login form with floating inputs and enhanced loading feedback
+ * LoginForm — standard split-card login (username/password + optional forgot password)
  */
 
 import { useState } from "react";
 import { useRouter } from "next/router";
-import { Lock, User } from "lucide-react";
-import { FloatingInput } from "./FloatingInput";
+import { Lock, User, Mail } from "lucide-react";
 import { sanitizeReturnUrl } from "../../lib/auth/auth-utils";
+import { BRAND } from "../../config/brand";
+
+function AuthField({ type, name, label, icon: Icon, value, onChange, autoComplete, required }) {
+  return (
+    <div className="relative">
+      {Icon && (
+        <Icon
+          className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
+      )}
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        autoComplete={autoComplete}
+        required={required}
+        placeholder={label}
+        className="w-full rounded-full border-0 bg-muted/60 py-3.5 pl-12 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:bg-muted focus:ring-2 focus:ring-primary/30"
+      />
+    </div>
+  );
+}
 
 export function LoginForm() {
   const router = useRouter();
-  const [form, setForm] = useState({ username: "", password: "" });
+  const [mode, setMode] = useState("login");
+  const [remember, setRemember] = useState(false);
+  const [form, setForm] = useState({ username: "", password: "", email: "" });
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [focusedField, setFocusedField] = useState(null);
 
   function handleChange(event) {
     const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleFocus(fieldName) {
-    setFocusedField(fieldName);
-  }
-
-  function handleBlur() {
-    setFocusedField(null);
-  }
-
-  async function handleSubmit(event) {
+  async function handleLoginSubmit(event) {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
-      // Add timeout to prevent hanging
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       let response;
       try {
         response = await fetch("/api/auth/login", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(form),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: form.username,
+            password: form.password,
+          }),
           signal: controller.signal,
         });
       } catch (fetchError) {
         clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
+        if (fetchError.name === "AbortError") {
           throw new Error("Login request timed out. Please check your connection and try again.");
         }
         throw new Error("Unable to connect to server. Please check your connection.");
@@ -63,10 +80,7 @@ export function LoginForm() {
         throw new Error(result.err ?? "Login failed");
       }
 
-      // Token is stored in httpOnly cookie by the API
-      // Force a full page reload to ensure cookie is available
       const returnUrl = sanitizeReturnUrl(router.query.from);
-      // Use window.location.replace to avoid adding to history
       window.location.replace(returnUrl);
     } catch (err) {
       setError(err.message || "An unexpected error occurred. Please try again.");
@@ -74,87 +88,164 @@ export function LoginForm() {
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Error Message */}
-      {error && (
-        <div className="rounded-xl border border-error/40 bg-error/10 p-4 text-sm text-error backdrop-blur-sm animate-shake">
-          <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
-            <span>{error}</span>
+  async function handleForgotSubmit(event) {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch("/api/auth/send-password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.err || json?.error || "Could not send reset email.");
+      }
+      setSuccess("If an account exists for that email, we sent a reset link.");
+      setLoading(false);
+    } catch (err) {
+      setError(err.message || "Failed to send reset email.");
+      setLoading(false);
+    }
+  }
+
+  if (mode === "forgot") {
+    return (
+      <div className="mx-auto w-full max-w-sm space-y-6">
+        <header className="space-y-1 text-center md:text-left">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Account</p>
+          <h1 className="text-xl font-bold text-foreground">Reset password</h1>
+          <p className="text-sm text-muted-foreground">
+            Enter your email and we&apos;ll send a link to set a new password.
+          </p>
+        </header>
+
+        {error && (
+          <div className="rounded-xl border border-error/40 bg-error-bg p-3 text-sm text-error" role="alert">
+            {error}
           </div>
+        )}
+        {success && (
+          <div className="rounded-xl border border-success/30 bg-success-bg p-3 text-sm text-success" role="status">
+            {success}
+          </div>
+        )}
+
+        <form onSubmit={handleForgotSubmit} className="space-y-4">
+          <AuthField
+            type="email"
+            name="email"
+            label="Email address"
+            icon={Mail}
+            value={form.email}
+            onChange={handleChange}
+            autoComplete="email"
+            required
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-full bg-gradient-to-r from-primary to-secondary py-3.5 text-sm font-semibold uppercase tracking-wider text-white shadow-lg shadow-primary/25 transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? "Sending…" : "Send reset link"}
+          </button>
+        </form>
+
+        <button
+          type="button"
+          onClick={() => {
+            setMode("login");
+            setError(null);
+            setSuccess(null);
+          }}
+          className="w-full text-center text-sm font-medium text-primary hover:underline"
+        >
+          Back to sign in
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-sm space-y-6">
+      <header className="space-y-1 text-center md:text-left">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">User login</p>
+        <h1 className="sr-only">Sign in to {BRAND.name}</h1>
+      </header>
+
+      {error && (
+        <div className="rounded-xl border border-error/40 bg-error-bg p-3 text-sm text-error" role="alert">
+          {error}
         </div>
       )}
 
-      {/* Username Field */}
-      <FloatingInput
-        type="text"
-        name="username"
-        label="Username"
-        icon={User}
-        value={form.username}
-        onChange={handleChange}
-        onFocus={() => handleFocus("username")}
-        onBlur={handleBlur}
-        autoComplete="username"
-        required
-        data-focused={focusedField === "username" ? "true" : "false"}
-      />
+      <form onSubmit={handleLoginSubmit} className="space-y-4">
+        <AuthField
+          type="text"
+          name="username"
+          label="Username or email"
+          icon={User}
+          value={form.username}
+          onChange={handleChange}
+          autoComplete="username"
+          required
+        />
+        <AuthField
+          type="password"
+          name="password"
+          label="Password"
+          icon={Lock}
+          value={form.password}
+          onChange={handleChange}
+          autoComplete="current-password"
+          required
+        />
 
-      {/* Password Field */}
-      <FloatingInput
-        type="password"
-        name="password"
-        label="Password"
-        icon={Lock}
-        value={form.password}
-        onChange={handleChange}
-        onFocus={() => handleFocus("password")}
-        onBlur={handleBlur}
-        autoComplete="current-password"
-        required
-        data-focused={focusedField === "password" ? "true" : "false"}
-      />
+        <div className="flex items-center justify-between gap-4 px-1 text-sm">
+          <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="h-4 w-4 rounded-full border-border text-primary focus:ring-primary/30"
+            />
+            <span>Remember me</span>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("forgot");
+              setError(null);
+            }}
+            className="font-medium text-primary hover:underline"
+          >
+            Forgot password?
+          </button>
+        </div>
 
-      {/* Submit Button with Enhanced Loading State */}
-      <button
-        type="submit"
-        disabled={loading}
-        aria-label={loading ? "Signing in, please wait" : "Sign in to your account"}
-        className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-primary to-secondary px-5 sm:px-6 py-3.5 sm:py-4 text-xs sm:text-sm font-semibold uppercase tracking-wider text-white shadow-lg shadow-primary/30 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5 hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100"
-      >
-        <span className="relative z-10 flex items-center justify-center gap-2.5">
+        <button
+          type="submit"
+          disabled={loading}
+          aria-label={loading ? "Signing in, please wait" : "Sign in"}
+          className="w-full rounded-full bg-gradient-to-r from-primary to-secondary py-3.5 text-sm font-semibold uppercase tracking-wider text-white shadow-lg shadow-primary/25 transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+        >
           {loading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin flex-shrink-0" />
-              <span className="font-medium">Signing in…</span>
-            </>
+            <span className="inline-flex items-center justify-center gap-2">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              Signing in…
+            </span>
           ) : (
-            <>
-              <Lock className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
-              <span>Sign in</span>
-            </>
+            "Login"
           )}
-        </span>
-        {/* Button shine effect - only show when not loading */}
-        {!loading && (
-          <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-1000" />
-        )}
-      </button>
-      
-      {/* CSS Animations */}
-      <style jsx>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-          20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-        
-        .animate-shake {
-          animation: shake 0.5s ease-in-out;
-        }
-      `}</style>
-    </form>
+        </button>
+      </form>
+
+      <p className="text-center text-xs text-muted-foreground md:text-left">
+        Customer? Use the link from your quote email to access your portal.
+      </p>
+    </div>
   );
 }
-

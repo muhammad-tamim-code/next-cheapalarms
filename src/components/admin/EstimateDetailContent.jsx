@@ -26,12 +26,16 @@ import {
   useCreateInvoiceFromEstimate, 
   useSendEstimate,
   useUpdateEstimate,
+  useUpdateItemsMeta,
   useCompleteReview,
   useRequestChanges,
   useSendRevisionNotification,
   useDeleteEstimate
 } from "../../lib/react-query/hooks/admin";
 import { computeUIState } from "../../lib/portal/status-computer";
+import { useEstimateLineItems } from "../../hooks/admin/useEstimateLineItems";
+import { buildRevisionData, estimateWasSent } from "../../lib/admin/build-revision-data";
+import { canEditEstimateLines } from "../../lib/admin/estimate-edit-guards";
 import { useEstimatePhotos } from "../../lib/react-query/hooks/use-estimate-photos";
 import { PhotoGallery } from "./PhotoGallery";
 import { AddCustomItemModal } from "./AddCustomItemModal";
@@ -45,6 +49,17 @@ import JobDetailModal from "../servicem8/JobDetailModal";
 import { toast } from "sonner";
 import { Trash2, User, Mail, Phone, CheckCircle2, DollarSign, Calendar, Send } from "lucide-react";
 
+// Admin per-line photo policy. Two options only.
+//   required = customer must upload at least one photo.
+//   optional = customer may upload but is not blocked from submitting.
+// "Heading" is NOT user-selectable — package items are detected automatically
+// at estimate creation time (see PortalService::buildInitialItemsMeta) and
+// shown as a static "Package" label here instead of the dropdown.
+const PHOTO_POLICIES = [
+  { value: "required", label: "Required" },
+  { value: "optional", label: "Optional" },
+];
+
 // Memoized table row component for performance
 const EstimateTableRow = memo(function EstimateTableRow({
   item,
@@ -57,7 +72,10 @@ const EstimateTableRow = memo(function EstimateTableRow({
   originalQtyForItem,
   onQuantityChange,
   onRemoveClick,
-  onSelect
+  onSelect,
+  photoPolicy,
+  photoPolicyPending,
+  onPhotoPolicyChange,
 }) {
   const itemName = item?.name || "Item";
   
@@ -163,6 +181,32 @@ const EstimateTableRow = memo(function EstimateTableRow({
       <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
         {formatCurrencyAmount((Number(item?.amount) || 0) * itemQty, currency)}
       </td>
+      <td className="px-2 py-3 text-center">
+        {photoPolicy === "heading" ? (
+          <span
+            className="inline-flex items-center rounded-md border border-border bg-muted px-2 py-1 text-xs font-medium text-muted-foreground"
+            title="Package / bundle parent — hidden from the customer photo checklist automatically."
+          >
+            Package
+          </span>
+        ) : (
+          <select
+            value={photoPolicy}
+            onChange={(e) => {
+              e.stopPropagation();
+              onPhotoPolicyChange?.(item?.name || "Item", e.target.value);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            disabled={photoPolicyPending}
+            aria-label={`Photo policy for ${item?.name || "item"}`}
+            className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {PHOTO_POLICIES.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        )}
+      </td>
       {isEditMode && (
         <td className="px-4 py-3 text-center">
           <Button
@@ -195,10 +239,12 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
   const createInvoiceMutation = useCreateInvoiceFromEstimate();
   const sendEstimateMutation = useSendEstimate();
   const updateEstimateMutation = useUpdateEstimate();
+  const updateItemsMetaMutation = useUpdateItemsMeta();
   const completeReviewMutation = useCompleteReview();
   const requestChangesMutation = useRequestChanges();
   const sendRevisionMutation = useSendRevisionNotification(); // Separate hook for revision notifications
   const deleteEstimateMutation = useDeleteEstimate();
+  const [pendingPhotoPolicyName, setPendingPhotoPolicyName] = useState(null);
 
   const estimate = data?.ok ? data : null;
   const hasInvoice = !!(estimate?.linkedInvoice || estimate?.portalMeta?.invoice?.id);
@@ -206,19 +252,31 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
   // Row selection state (for photos)
   const [selectedItem, setSelectedItem] = useState(null);
   
-  // Edit mode state (ID-based: originals separate, no originalQty on items)
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editedItems, setEditedItems] = useState([]);
-  const [originalItemsById, setOriginalItemsById] = useState({});
-  const [editedDiscount, setEditedDiscount] = useState(null);
-  const [removedItemIds, setRemovedItemIds] = useState([]);
+  const lineItems = useEstimateLineItems({ trackChanges: isEditMode });
+  const {
+    initializeFromEstimate,
+    resetEmpty,
+    handleQuantityChange,
+    handleRemoveItem: removeLineItemAt,
+    handleAddCustomItem,
+    handleApplyDiscount,
+    validateItems,
+    hasChanges,
+    changedItems,
+    addedItems,
+    removedItems,
+    editedDiscount,
+    itemsForSave,
+    total: lineItemsTotal,
+  } = lineItems;
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [deleteItemDialogOpen, setDeleteItemDialogOpen] = useState(false);
   const [itemToDeleteIndex, setItemToDeleteIndex] = useState(null);
   const [deleteEstimateDialogOpen, setDeleteEstimateDialogOpen] = useState(false);
-  const [deleteScope, setDeleteScope] = useState('both');
+  const [deleteScope, setDeleteScope] = useState('local');
   
   // ServiceM8 state
   const [jobLink, setJobLink] = useState(null);
@@ -231,6 +289,7 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
   const { data: photosData } = useEstimatePhotos({
     estimateId: estimateId || undefined,
     enabled: !!estimateId,
+    initialData: estimate?.estimatePhotos,
   });
   
   // Calculate photo counts per item
@@ -285,22 +344,23 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
 
   // Warn before leaving page with unsaved changes
   useEffect(() => {
-    if (!isEditMode) return;
-    
+    if (!isEditMode || !hasChanges) return;
+
     const handleBeforeUnload = (e) => {
       e.preventDefault();
       e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
       return e.returnValue;
     };
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isEditMode]);
+  }, [isEditMode, hasChanges]);
 
   // Extract estimate data (safe even if estimate is null) - MUST be before any usage
   const contact = estimate?.contact || {};
-  const items = isEditMode ? editedItems : (estimate?.items || []);
+  const items = isEditMode ? lineItems.editedItems : (estimate?.items || []);
   const portalMeta = estimate?.portalMeta || {};
+  const canEditLines = canEditEstimateLines(portalMeta, hasInvoice);
   const linkedInvoice = estimate?.linkedInvoice;
   const currency = estimate?.currency || DEFAULT_CURRENCY;
 
@@ -320,150 +380,31 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
     [portalMeta.photos?.submitted_at]
   );
 
-  // Memoize estimateTotal for DiscountModal
-  const estimateTotalForDiscount = useMemo(() => {
-    return (editedItems || [])
-      .filter(item => item != null)
-      .reduce((sum, item) => {
-        const amount = Number(item?.amount);
-        const qty = Number(item?.qty || item?.quantity || 1);
-        return sum + ((isNaN(amount) ? 0 : amount) * (isNaN(qty) ? 1 : qty));
-      }, 0);
-  }, [editedItems]);
-
-  // Calculate totals (safe even if estimate is null) - MUST be before handleConfirmSave
   const originalTotal = estimate?.total || 0;
-  const newTotal = useMemo(() => {
-    const itemsTotal = (editedItems || [])
-      .filter(item => item != null)
-      .reduce((sum, item) => {
-        const amount = Number(item?.amount);
-        const qty = Number(item?.qty || item?.quantity || 1);
-        return sum + ((isNaN(amount) ? 0 : amount) * (isNaN(qty) ? 1 : qty));
-      }, 0);
-    
-    if (editedDiscount && editedDiscount.value !== 0 && editedDiscount.type) {
-      const discountValue = Number(editedDiscount.value);
-      if (isNaN(discountValue)) return itemsTotal;
-      
-      if (editedDiscount.type === 'percentage') {
-        // For percentage: positive = discount, negative = surcharge
-        return itemsTotal * (1 - discountValue / 100);
-      } else {
-        // For fixed: positive = discount, negative = surcharge
-        return itemsTotal - discountValue;
-      }
-    }
-    
-    return itemsTotal;
-  }, [editedItems, editedDiscount]);
+  const editTotal = lineItemsTotal;
 
-  // Detect changes by ID (no index comparison; originals from originalItemsById)
-  // Now includes itemId, oldAmount, newAmount for full audit trail
-  const changedItems = useMemo(() => {
-    if (!isEditMode) return [];
-    return (editedItems || [])
-      .filter((ed) => ed != null && originalItemsById[ed.id] != null)
-      .filter((ed) => {
-        const orig = originalItemsById[ed.id];
-        const origQty = orig?.qty ?? orig?.quantity ?? 0;
-        const edQty = ed?.qty ?? ed?.quantity ?? 0;
-        return origQty !== edQty;
-      })
-      .map((ed) => {
-        const orig = originalItemsById[ed.id];
-        const origQty = orig?.qty ?? orig?.quantity ?? 0;
-        const newQty = ed?.qty ?? ed?.quantity ?? 0;
-        const unitPrice = Number(ed?.amount) || 0;
-        return {
-          itemId: ed.id,
-          name: ed?.name || 'Item',
-          originalQty: origQty,
-          newQty: newQty,
-          oldAmount: unitPrice * origQty,
-          newAmount: unitPrice * newQty,
-        };
-      });
-  }, [isEditMode, editedItems, originalItemsById]);
-
-  // Added items - includes itemId and photoRequired flag
-  const addedItems = useMemo(() => {
-    if (!isEditMode) return [];
-    return (editedItems || [])
-      .filter((ed) => ed != null && !originalItemsById[ed.id])
-      .map((ed) => ({
-        itemId: ed.id,
-        name: ed?.name || 'Item',
-        qty: ed?.qty ?? ed?.quantity ?? 1,
-        amount: Number(ed?.amount) || 0,
-        photoRequired: ed?.photoRequired ?? false, // Admin-added items default to no photo required
-        isCustom: ed?.isCustom ?? false,
-      }));
-  }, [isEditMode, editedItems, originalItemsById]);
-
-  // Removed items - includes itemId and amounts
-  const removedItems = useMemo(() => {
-    if (!isEditMode) return [];
-    return removedItemIds
-      .map((id) => {
-        const orig = originalItemsById[id];
-        if (!orig) return null;
-        return {
-          itemId: id,
-          name: orig?.name || 'Item',
-          qty: orig?.qty ?? orig?.quantity ?? 1,
-          amount: Number(orig?.amount) || 0,
-        };
-      })
-      .filter(Boolean);
-  }, [isEditMode, removedItemIds, originalItemsById]);
-
-  // Initialize edited items when entering edit mode (ID-based; no originalQty on items)
   const handleEnterEditMode = useCallback(() => {
-    const items = (estimate?.items || []).filter((item) => item != null);
-    const byId = {};
-    const withId = items.map((item, idx) => {
-      const id = item.id ?? `orig-${idx}`;
-      byId[id] = { ...item, qty: item?.qty ?? item?.quantity ?? 1, quantity: item?.qty ?? item?.quantity ?? 1 };
-      return { ...item, id, qty: item?.qty ?? item?.quantity ?? 1, quantity: item?.qty ?? item?.quantity ?? 1 };
-    });
-    setOriginalItemsById(byId);
-    setEditedItems(withId);
-    setEditedDiscount(estimate?.discount || null);
-    setRemovedItemIds([]);
+    initializeFromEstimate(estimate?.items || [], estimate?.discount || null);
     setIsEditMode(true);
-  }, [estimate?.items, estimate?.discount]);
+  }, [estimate?.items, estimate?.discount, initializeFromEstimate]);
 
   const handleCancelEdit = useCallback(() => {
     setIsEditMode(false);
-    setEditedItems([]);
-    setOriginalItemsById({});
-    setEditedDiscount(null);
-    setRemovedItemIds([]);
-  }, []);
+    resetEmpty();
+  }, [resetEmpty]);
 
   const handleSaveClick = useCallback(() => {
-    // Validation
-    if (editedItems.length === 0) {
-      toast.error("Cannot save estimate with no items");
+    const err = validateItems();
+    if (err) {
+      toast.error(err);
       return;
     }
-    
-    const invalidItems = (editedItems || []).filter(item => {
-      if (!item) return true; // Filter out null items
-      const qty = Number(item?.qty || item?.quantity || 0);
-      const amount = Number(item?.amount || 0);
-      return isNaN(amount) || isNaN(qty) || amount <= 0 || qty <= 0;
-    });
-    
-    if (invalidItems.length > 0) {
-      toast.error("All items must have positive price and quantity");
+    if (!hasChanges) {
+      toast.info("No changes to save");
       return;
     }
-    
-    // Show save confirmation modal
     setShowSaveModal(true);
-  }, [editedItems]);
+  }, [validateItems, hasChanges]);
 
   // Define handleSendEstimate before handleConfirmSave since it's used in handleConfirmSave's dependency array
   const handleSendEstimate = useCallback(async () => {
@@ -486,86 +427,52 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
 
   const handleConfirmSave = useCallback(async ({ adminNote, sendNotification }) => {
     try {
-      // Calculate revision data with validation for NaN/Infinity
-      const safeOldTotal = isFinite(originalTotal) ? originalTotal : 0;
-      const safeNewTotal = isFinite(newTotal) ? newTotal : 0;
-      const safeNetChange = isFinite(safeNewTotal) && isFinite(safeOldTotal) 
-        ? safeNewTotal - safeOldTotal 
-        : 0;
-      
-      // Build detailed revision data with item IDs and amounts for audit trail
-      const revisionData = {
-        revisedAt: new Date().toISOString(),
+      const revisionData = buildRevisionData({
         adminNote,
         source: 'admin-edit',
-        oldTotal: safeOldTotal,
-        newTotal: safeNewTotal,
-        netChange: safeNetChange,
-        // Changed items with full details for line-by-line tracking
-        changedItems: (changedItems || []).filter(item => item != null).map(item => ({
-          itemId: item?.itemId || '',
-          name: item?.name || 'Item',
-          oldQty: item?.originalQty || 0,
-          newQty: item?.newQty || 0,
-          oldAmount: item?.oldAmount || 0,
-          newAmount: item?.newAmount || 0,
-        })),
-        // Added items with photoRequired flag
-        addedItems: (addedItems || []).filter(item => item != null).map(item => ({
-          itemId: item?.itemId || '',
-          name: item?.name || 'Item',
-          qty: item?.qty || 1,
-          amount: item?.amount || 0,
-          photoRequired: item?.photoRequired ?? false,
-        })),
-        // Removed items with ID and amounts
-        removedItems: (removedItems || []).filter(item => item != null).map(item => ({
-          itemId: item?.itemId || '',
-          name: item?.name || 'Item',
-          qty: item?.qty || 1,
-          amount: item?.amount || 0,
-        })),
-        discount: editedDiscount
-      };
+        originalTotal,
+        newTotal: editTotal,
+        changedItems,
+        addedItems,
+        removedItems,
+        discount: editedDiscount,
+      });
 
-      // 1. Update estimate (one API call)
       await updateEstimateMutation.mutateAsync({
         estimateId,
         locationId,
-        items: (editedItems || []).filter(item => item != null).map(item => ({
-          name: item?.name || 'Item',
-          description: item?.description || '',
-          currency: item?.currency || estimate?.currency || DEFAULT_CURRENCY,
-          amount: item?.amount || 0,
-          qty: item?.qty || item?.quantity || 1
-        })),
+        items: itemsForSave(currency),
         discount: editedDiscount,
-        revisionData, // Send revision data to backend
+        revisionData,
       });
-      
+
       setShowSaveModal(false);
       toast.success("Estimate updated successfully");
       setIsEditMode(false);
-      
-      // 2. Send notification (if requested) - using separate hook to avoid button confusion
+      resetEmpty();
+
       if (sendNotification) {
+        const wasSent = estimateWasSent(portalMeta);
         try {
-          await sendRevisionMutation.mutateAsync({ 
-            estimateId, 
-            locationId,
-            revisionNote: adminNote,
-            revisionData 
-          });
-          toast.success("Customer notified of estimate update");
+          if (wasSent) {
+            await sendRevisionMutation.mutateAsync({
+              estimateId,
+              locationId,
+              revisionNote: adminNote,
+              revisionData,
+            });
+            toast.success("Customer notified of estimate update");
+          } else {
+            await sendEstimateMutation.mutateAsync({ estimateId, locationId });
+            toast.success("Estimate sent to customer");
+          }
         } catch (err) {
           const errorMessage = parseWpFetchError(err);
-          // Make it clear the estimate was saved but notification failed
           toast.error(errorMessage || "Estimate saved but failed to notify customer", {
-            duration: 6000, // Longer duration for important error
+            duration: 6000,
           });
         }
       } else if (displayStatus !== 'ACCEPTED' && displayStatus !== 'REJECTED' && displayStatus !== 'INVOICE_READY') {
-        // Remind admin to send estimate if customer hasn't accepted yet
         toast.info("Don't forget to send the updated estimate to the customer!", {
           duration: 5000,
           action: {
@@ -574,64 +481,39 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
           }
         });
       }
-      
-      // Note: No refetch needed - mutations already invalidate queries and React Query will refetch automatically
     } catch (err) {
       const errorMessage = parseWpFetchError(err);
       toast.error(errorMessage || "Failed to update estimate");
-      // Note: No refetch needed - React Query will refetch on next mount or when queries are refocused
     }
-  }, [originalTotal, newTotal, changedItems, addedItems, removedItems, editedDiscount, editedItems, estimate, updateEstimateMutation, estimateId, locationId, sendRevisionMutation, displayStatus, handleSendEstimate]);
-
-  const handleQuantityChange = useCallback((index, delta) => {
-    setEditedItems((prev) => {
-      if (index < 0 || index >= prev.length) return prev;
-      const item = prev[index];
-      if (!item) return prev;
-      const orig = originalItemsById[item.id];
-      const origQty = orig ? (orig.qty ?? orig.quantity ?? 1) : (item.qty ?? item.quantity ?? 1);
-      const currentQty = item?.qty ?? item?.quantity ?? 1;
-      const minQty = Math.max(1, origQty - 10);
-      const maxQty = origQty + 10;
-      const newQty = Math.max(minQty, Math.min(currentQty + delta, maxQty));
-      const newItems = [...prev];
-      newItems[index] = { ...item, qty: newQty, quantity: newQty };
-      return newItems;
-    });
-  }, [originalItemsById]);
-
-  const handleRemoveItemClick = useCallback((index) => {
-    // Bounds check: ensure index is valid
-    setEditedItems(prev => {
-      if (index < 0 || index >= prev.length) {
-        return prev;
-      }
-      setItemToDeleteIndex(index);
-      setDeleteItemDialogOpen(true);
-      return prev;
-    });
-  }, []);
+  }, [
+    originalTotal,
+    editTotal,
+    changedItems,
+    addedItems,
+    removedItems,
+    editedDiscount,
+    itemsForSave,
+    currency,
+    estimateId,
+    locationId,
+    portalMeta,
+    updateEstimateMutation,
+    sendRevisionMutation,
+    resetEmpty,
+    sendEstimateMutation,
+    displayStatus,
+    handleSendEstimate,
+  ]);
 
   const handleRemoveItem = useCallback((index) => {
-    setEditedItems((prev) => {
-      if (index < 0 || index >= prev.length) return prev;
-      const item = prev[index];
-      if (item?.id && originalItemsById[item.id]) {
-        setRemovedItemIds((ids) => [...ids, item.id]);
-      }
-      setDeleteItemDialogOpen(false);
-      setItemToDeleteIndex(null);
-      return prev.filter((_, i) => i !== index);
-    });
-  }, [originalItemsById]);
+    removeLineItemAt(index);
+    setDeleteItemDialogOpen(false);
+    setItemToDeleteIndex(null);
+  }, [removeLineItemAt]);
 
-  const handleAddCustomItem = useCallback((newItem) => {
-    const id = newItem.id ?? `custom-${Date.now()}`;
-    setEditedItems((prev) => [...prev, { ...newItem, id, isCustom: true }]);
-  }, []);
-
-  const handleApplyDiscount = useCallback((discount) => {
-    setEditedDiscount(discount);
+  const handleRemoveItemClick = useCallback((index) => {
+    setItemToDeleteIndex(index);
+    setDeleteItemDialogOpen(true);
   }, []);
 
   const handleRowSelect = useCallback((item) => {
@@ -657,6 +539,49 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
   const filteredItems = useMemo(() => {
     return (items || []).filter(item => item != null);
   }, [items]);
+
+  // Resolve the per-line photo policy from portalMeta.itemsMeta with sensible defaults.
+  // Order: explicit isHeading -> explicit photoRequired -> isCustom defaults to optional -> required.
+  const itemsMeta = useMemo(() => portalMeta.itemsMeta || {}, [portalMeta.itemsMeta]);
+  const resolvePhotoPolicy = useCallback((item) => {
+    const name = item?.name || "";
+    const meta = itemsMeta[name] || {};
+    if (meta.isHeading) return "heading";
+    if (typeof meta.photoRequired === "boolean") {
+      return meta.photoRequired ? "required" : "optional";
+    }
+    if (item?.isCustom || meta.isCustom) return "optional";
+    return "required";
+  }, [itemsMeta]);
+
+  const handlePhotoPolicyChange = useCallback((itemName, nextPolicy) => {
+    if (!itemName || !estimateId) return;
+    // Headings are auto-detected and not user-selectable from this dropdown,
+    // so we never write isHeading here. We only flip photoRequired so the
+    // server-side isHeading flag is preserved as-is via deep-merge.
+    const payload = { name: itemName, photoRequired: nextPolicy === "required" };
+
+    setPendingPhotoPolicyName(itemName);
+    updateItemsMetaMutation.mutate(
+      { estimateId, items: [payload] },
+      {
+        onSuccess: () => {
+          toast.success("Photo policy saved", {
+            description: `${itemName} → ${nextPolicy}`,
+            duration: 1800,
+          });
+        },
+        onError: (err) => {
+          toast.error("Failed to save photo policy", {
+            description: err?.message || "Please try again.",
+          });
+        },
+        onSettled: () => {
+          setPendingPhotoPolicyName(null);
+        },
+      },
+    );
+  }, [estimateId, updateItemsMetaMutation]);
 
   // Memoize created date formatting
   const createdAtFormatted = useMemo(
@@ -904,7 +829,7 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
             </div>
             <p className="mt-2 text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-primary" />
-              {formatCurrencyAmount(isEditMode ? newTotal : originalTotal, currency)}
+              {formatCurrencyAmount(isEditMode ? editTotal : originalTotal, currency)}
             </p>
             {portalMeta.photos?.submission_status === 'submitted' && (
               <p className="mt-2 text-xs font-medium text-muted-foreground">
@@ -936,7 +861,7 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
         {/* Line Items (Left 70%) */}
         <div className="lg:col-span-2 space-y-4">
           {/* Edit Mode Controls */}
-          {!isEditMode && !hasInvoice && (displayStatus !== 'ACCEPTED' && displayStatus !== 'REJECTED' && displayStatus !== 'INVOICE_READY' || portalMeta.photos?.submission_status === 'submitted') && (
+          {!isEditMode && canEditLines.allowed && (
             <div className="rounded-xl border border-info/30 bg-info-bg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -955,13 +880,22 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
                     </p>
                   </div>
                 </div>
-                <Button
-                  onClick={handleEnterEditMode}
-                  variant="gradient"
-                  className="whitespace-nowrap"
-                >
-                  Edit Estimate
-                </Button>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="whitespace-nowrap"
+                  >
+                    <Link href={`/admin/quotes/edit/${estimateId}`}>Quick Quote</Link>
+                  </Button>
+                  <Button
+                    onClick={handleEnterEditMode}
+                    variant="gradient"
+                    className="whitespace-nowrap"
+                  >
+                    Edit Estimate
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -987,7 +921,7 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
           {isEditMode && (
             <ChangeSummary
               originalTotal={originalTotal}
-              newTotal={newTotal}
+              newTotal={editTotal}
               changedItems={changedItems}
               addedItems={addedItems}
               removedItems={removedItems}
@@ -1038,6 +972,12 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
                       <th className="px-4 py-2 text-center text-xs font-semibold uppercase text-muted-foreground">Qty</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold uppercase text-muted-foreground">Unit Price</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold uppercase text-muted-foreground">Total</th>
+                      <th
+                        className="px-2 py-2 text-center text-xs font-semibold uppercase text-muted-foreground"
+                        title="Heading lines are hidden from the customer photo checklist. Required = customer must upload, Optional = they may."
+                      >
+                        Photo
+                      </th>
                       {isEditMode && (
                         <th className="px-4 py-2 text-center text-xs font-semibold uppercase text-muted-foreground">Actions</th>
                       )}
@@ -1049,9 +989,11 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
                       const photoCount = itemPhotoCounts[itemName] || 0;
                       const itemQty = item?.qty || item?.quantity || 1;
                       const isSelected = !isEditMode && selectedItem?.name === itemName;
-                      const orig = isEditMode && item?.id ? originalItemsById[item.id] : null;
+                      const orig = isEditMode && item?.id ? lineItems.originalItemsById[item.id] : null;
                       const originalQtyForItem = orig ? (orig.qty ?? orig.quantity ?? 1) : undefined;
                       
+                      const itemPolicy = resolvePhotoPolicy(item);
+                      const policyPending = pendingPhotoPolicyName === itemName;
                       return (
                         <EstimateTableRow
                           key={item?.id || idx}
@@ -1066,16 +1008,20 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
                           onQuantityChange={handleQuantityChange}
                           onRemoveClick={handleRemoveItemClick}
                           onSelect={handleRowSelect}
+                          photoPolicy={itemPolicy}
+                          photoPolicyPending={policyPending}
+                          onPhotoPolicyChange={handlePhotoPolicyChange}
                         />
                       );
                     })}
                   </tbody>
                   <tfoot className="border-t-2 border-border/60">
                     <tr>
-                      <td colSpan={isEditMode ? 4 : 3} className="px-4 py-3 text-right font-semibold text-foreground">Total</td>
+                      <td colSpan={3} className="px-4 py-3 text-right font-semibold text-foreground">Total</td>
                       <td className="px-4 py-3 text-right font-bold text-foreground">
-                        {formatCurrencyAmount(isEditMode ? newTotal : originalTotal, currency)}
+                        {formatCurrencyAmount(isEditMode ? editTotal : originalTotal, currency)}
                       </td>
+                      <td></td>
                       {isEditMode && <td></td>}
                     </tr>
                   </tfoot>
@@ -1413,7 +1359,7 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
         onClose={() => setShowDiscountModal(false)}
         onApply={handleApplyDiscount}
         currentDiscount={editedDiscount}
-        estimateTotal={estimateTotalForDiscount}
+        estimateTotal={lineItems.subtotal}
         currency={currency}
       />
 
@@ -1426,7 +1372,7 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
         removedItems={removedItems}
         discount={editedDiscount}
         originalTotal={originalTotal}
-        newTotal={newTotal}
+        newTotal={editTotal}
         currency={currency}
         isSaving={updateEstimateMutation.isPending}
       />

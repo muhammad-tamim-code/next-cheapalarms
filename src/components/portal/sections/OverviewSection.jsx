@@ -3,6 +3,7 @@ import { Button } from "../../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../ui/card";
 import { formatDate, formatCurrency, badgeVariant } from "../utils/portal-utils";
 import { memo } from "react";
+import { BRAND } from "../../../config/brand";
 
 export const OverviewSection = memo(function OverviewSection({
   view,
@@ -202,7 +203,7 @@ export const OverviewSection = memo(function OverviewSection({
         <Card>
           <CardHeader>
             <CardTitle>Support</CardTitle>
-            <CardDescription>Your CheapAlarms specialist.</CardDescription>
+            <CardDescription>Your {BRAND.name} specialist.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <div>

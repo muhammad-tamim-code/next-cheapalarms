@@ -9,7 +9,7 @@ export function useDeleteUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ userId, locationId, scope = 'both' }) => {
+    mutationFn: async ({ userId, locationId, scope = 'local' }) => {
       // Use Next.js API route instead of direct wpFetch
       // The API route runs server-side and can read httpOnly cookies
       const res = await fetch(`/api/admin/users/${userId}/delete`, {

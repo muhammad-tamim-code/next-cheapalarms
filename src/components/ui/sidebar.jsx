@@ -18,6 +18,7 @@ import { Input } from "./input"
 import { Badge } from "./badge"
 import { SidebarContext } from "./sidebar/context"
 import { SidebarNav } from "./sidebar/SidebarNav"
+import { BRAND } from "../../config/brand"
 
 // Hook to detect mobile
 function useIsMobile() {
@@ -438,17 +439,17 @@ function SidebarHeader({ title, subtitle, enableSearch, environment, version }) 
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
-          <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground font-medium">CheapAlarms</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground font-medium">{BRAND.name}</p>
           <p
             className={cn(
-              "mt-2 text-lg font-semibold",
+              "mt-2 text-xl font-semibold",
               variant === "gradient" && "bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent",
               variant !== "gradient" && "text-foreground"
             )}
           >
             {title}
           </p>
-          {subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>}
+          {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
         </div>
         {environment && (
           <Badge
@@ -505,7 +506,7 @@ function UserMenuDropdown({ onProfileClick, onSettingsClick, onSignOutClick, set
       <button
         type="button"
         onClick={() => { setShowUserMenu(false); onProfileClick?.(); }}
-        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-all hover:bg-state-hover-bg"
+        className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-base transition-all hover:bg-state-hover-bg"
       >
         <User className="h-4 w-4 text-muted-foreground" />
         <span className="text-foreground">Profile</span>
@@ -513,7 +514,7 @@ function UserMenuDropdown({ onProfileClick, onSettingsClick, onSignOutClick, set
       <button
         type="button"
         onClick={() => { setShowUserMenu(false); onSettingsClick?.(); }}
-        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-all hover:bg-state-hover-bg"
+        className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-base transition-all hover:bg-state-hover-bg"
       >
         <Settings className="h-4 w-4 text-muted-foreground" />
         <span className="text-foreground">Settings</span>
@@ -521,7 +522,7 @@ function UserMenuDropdown({ onProfileClick, onSettingsClick, onSignOutClick, set
       <button
         type="button"
         onClick={() => { setShowUserMenu(false); onSignOutClick?.(); }}
-        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-all hover:bg-state-hover-bg text-error"
+        className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-base transition-all hover:bg-state-hover-bg text-error"
       >
         <LogOut className="h-4 w-4" />
         <span>Sign Out</span>
@@ -613,9 +614,9 @@ function SidebarFooter({ user, enableNotifications, enableThemeToggle, variant, 
             <div className="flex items-center gap-3">
               <div className="relative">
                 {user.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="h-8 w-8 rounded-full" />
+                  <img src={user.avatar} alt={user.name} className="h-9 w-9 rounded-full" />
                 ) : (
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-primary-foreground text-xs font-semibold">
+                  <div className="h-9 w-9 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-primary-foreground text-sm font-semibold">
                     {user.name.charAt(0)}
                   </div>
                 )}
@@ -631,12 +632,12 @@ function SidebarFooter({ user, enableNotifications, enableThemeToggle, variant, 
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-foreground truncate">{user.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
+                <p className="text-sm text-muted-foreground truncate">{user.email}</p>
               </div>
               <ChevronDown
                 className={cn(
-                  "h-4 w-4 text-muted-foreground transition-transform duration-fast ease-standard",
+                  "h-5 w-5 text-muted-foreground transition-transform duration-fast ease-standard",
                   showUserMenu && "rotate-180"
                 )}
               />
@@ -656,13 +657,13 @@ function SidebarFooter({ user, enableNotifications, enableThemeToggle, variant, 
           <button
             type="button"
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-state-hover-bg"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-base transition-all hover:bg-state-hover-bg"
           >
             <div className="relative">
               {user.avatar ? (
-                <img src={user.avatar} alt={user.name} className="h-8 w-8 rounded-full" />
+                <img src={user.avatar} alt={user.name} className="h-9 w-9 rounded-full" />
               ) : (
-                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-primary-foreground text-xs font-semibold">
+                <div className="h-9 w-9 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-primary-foreground text-sm font-semibold">
                   {user.name.charAt(0)}
                 </div>
               )}
@@ -678,8 +679,8 @@ function SidebarFooter({ user, enableNotifications, enableThemeToggle, variant, 
               )}
             </div>
             <div className="flex-1 min-w-0 text-left">
-              <p className="text-xs font-semibold text-foreground truncate">{user.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
+              <p className="text-sm text-muted-foreground truncate">{user.email}</p>
             </div>
             <ChevronDown
               className={cn(

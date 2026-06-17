@@ -5,6 +5,7 @@
 
 import { parse as parseCookie } from "cookie";
 import { TOKEN_COOKIE } from "../wp";
+import { API_TIMEOUT } from "./constants";
 
 const WP_API_BASE = process.env.NEXT_PUBLIC_WP_URL || "http://localhost:8882";
 
@@ -162,15 +163,30 @@ export async function proxyToWordPress(req, res, wpPath, options = {}) {
     }
 
     const wpUrl = `${wpBase}${finalPath}`;
-    const wpResp = await fetch(wpUrl, fetchOptions);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+    fetchOptions.signal = controller.signal;
+
+    let wpResp;
+    try {
+      wpResp = await fetch(wpUrl, fetchOptions);
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     const { body, status } = await parseWpResponse(wpResp);
     const transformedBody = transformResponse(body);
     return res.status(status).json(transformedBody);
   } catch (e) {
+    const message =
+      e instanceof Error
+        ? e.name === "AbortError"
+          ? "WordPress API request timed out"
+          : e.message
+        : "Failed to proxy request";
     return res.status(500).json({
       ok: false,
-      err: e instanceof Error ? e.message : "Failed to proxy request",
+      err: message,
     });
   }
 }

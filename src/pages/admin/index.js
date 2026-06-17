@@ -1,4 +1,5 @@
 import Head from "next/head";
+import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import AdminLayout from "../../components/admin/layout/AdminLayout";
 import { AlertsStrip } from "../../components/admin/ui/AlertsStrip";
@@ -8,6 +9,14 @@ import { HealthStatusCard } from "../../components/admin/HealthStatusCard";
 import { requireAdmin } from "../../lib/auth/requireAdmin";
 import { Spinner } from "../../components/ui/spinner";
 import { useAdminDashboard } from "../../lib/react-query/hooks/admin";
+
+const AdminEstimatesOverviewChart = dynamic(
+  () =>
+    import("../../components/admin/AdminEstimatesOverviewChart").then(
+      (m) => m.AdminEstimatesOverviewChart
+    ),
+  { ssr: false }
+);
 
 export default function AdminOverview({ authContext }) {
   const { data, isLoading, error } = useAdminDashboard();
@@ -42,6 +51,9 @@ export default function AdminOverview({ authContext }) {
           {stats?.map((s) => (
             <CardStat key={s.title} title={s.title} value={s.value} hint={s.hint} />
           ))}
+        </section>
+        <section className="mt-6">
+          <AdminEstimatesOverviewChart />
         </section>
         <section className="mt-6 grid gap-6 md:grid-cols-2">
           <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">

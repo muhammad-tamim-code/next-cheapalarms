@@ -4,7 +4,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../..
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { useState } from "react";
-import { requireAdmin } from "../../../lib/auth/requireAdmin";
+import { requirePermission } from "../../../lib/auth/requirePermission";
+import { GhlIntegrationCard } from "../../../components/admin/settings/GhlIntegrationCard";
+import { StripeIntegrationCard } from "../../../components/admin/settings/StripeIntegrationCard";
 
 export default function AdminSettings({ authContext }) {
   const [gstRate, setGstRate] = useState(0.1);
@@ -27,6 +29,10 @@ export default function AdminSettings({ authContext }) {
         <title>Superadmin • Settings</title>
       </Head>
       <AdminLayout title="Settings" authContext={authContext}>
+        <div className="mb-8 grid gap-6 lg:grid-cols-2">
+          <GhlIntegrationCard />
+          <StripeIntegrationCard />
+        </div>
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
@@ -100,10 +106,6 @@ export default function AdminSettings({ authContext }) {
 }
 
 export async function getServerSideProps(ctx) {
-  const authCheck = await requireAdmin(ctx, { notFound: true });
-  if (authCheck.notFound || authCheck.redirect) {
-    return authCheck;
-  }
-  return { props: { ...(authCheck.props || {}) } };
+  return requirePermission(ctx, "settings.manage");
 }
 

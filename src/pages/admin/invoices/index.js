@@ -15,6 +15,7 @@ import { InvoiceDetailModal } from "../../../components/admin/InvoiceDetailModal
 import { Checkbox } from "../../../components/ui/checkbox";
 import Link from "next/link";
 import { useInvoicesListState } from "../../../lib/admin/useInvoicesListState";
+import { useAdminPlatform } from "../../../lib/react-query/hooks/admin";
 
 export default function InvoicesListPage({ authContext }) {
   const {
@@ -59,6 +60,8 @@ export default function InvoicesListPage({ authContext }) {
     DEFAULT_CURRENCY,
   } = useInvoicesListState();
 
+  const { data: platformData } = useAdminPlatform();
+
   return (
     <>
       <Head>
@@ -66,6 +69,21 @@ export default function InvoicesListPage({ authContext }) {
       </Head>
       <AdminLayout title="Invoices" authContext={authContext}>
         <div className="space-y-8">
+          {platformData?.xeroDirectInvoicingEnabled && (
+            <div
+              className="rounded-lg border border-warning/40 bg-warning-bg px-4 py-3 text-sm text-foreground"
+              role="status"
+            >
+              <p className="font-semibold text-foreground">Xero-direct invoicing is on</p>
+              <p className="mt-1 text-muted-foreground">
+                New portal invoices can be created in Xero without a GoHighLevel invoice. Use{" "}
+                <Link href="/admin/integrations" className="text-primary font-medium hover:underline">
+                  Integrations
+                </Link>{" "}
+                for Xero connection status. Open an invoice to use &quot;Open invoice in Xero&quot; when linked.
+              </p>
+            </div>
+          )}
           {/* Page Header */}
           <div className="flex items-start justify-between">
             <div>

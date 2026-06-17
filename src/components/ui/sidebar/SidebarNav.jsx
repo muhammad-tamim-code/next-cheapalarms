@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, ChevronDown, Star } from "lucide-react";
+import { ChevronRight, ChevronDown } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { Badge } from "../badge";
 import { SidebarContext } from "./context";
@@ -11,8 +11,6 @@ function SidebarNavItem({ item, enableNestedNav }) {
     activeItem,
     onNavChange,
     navigatingTo,
-    pinnedItems,
-    onPinItem,
     variant,
     expandedItems,
     setExpandedItems,
@@ -28,37 +26,37 @@ function SidebarNavItem({ item, enableNestedNav }) {
 
   const itemClasses = {
     minimal: cn(
-      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-fast ease-standard relative group",
+      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-all duration-fast ease-standard relative group",
       isActive
         ? "bg-primary/10 text-primary border-l-2 border-primary"
         : "text-muted-foreground hover:bg-state-hover-bg hover:text-foreground"
     ),
     glass: cn(
-      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-fast ease-standard backdrop-blur-sm relative group",
+      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-all duration-fast ease-standard backdrop-blur-sm relative group",
       isActive
         ? "bg-primary/20 text-primary border border-primary/30 shadow-sm"
         : "text-muted-foreground hover:bg-surface/60 hover:text-foreground"
     ),
     gradient: cn(
-      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-fast ease-standard relative group",
+      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-all duration-fast ease-standard relative group",
       isActive
         ? "bg-gradient-to-r from-primary to-secondary text-primary-foreground shadow-md"
         : "text-muted-foreground hover:bg-primary/5 hover:text-foreground"
     ),
     compact: cn(
-      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-all duration-fast ease-standard relative group",
+      "flex w-full items-center gap-2 rounded-md px-2 py-2 text-base font-medium transition-all duration-fast ease-standard relative group",
       isActive
         ? "bg-primary text-primary-foreground"
         : "text-muted-foreground hover:bg-state-hover-bg hover:text-foreground"
     ),
     elevated: cn(
-      "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-fast ease-standard relative group",
+      "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-base font-medium transition-all duration-fast ease-standard relative group",
       isActive
         ? "bg-gradient-to-r from-primary to-secondary text-primary-foreground shadow-lg"
         : "text-muted-foreground hover:bg-state-hover-bg hover:text-foreground hover:shadow-sm"
     ),
     split: cn(
-      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-fast ease-standard relative group",
+      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-all duration-fast ease-standard relative group",
       isActive
         ? "bg-primary/10 text-primary border-l-4 border-primary"
         : "text-muted-foreground hover:bg-state-hover-bg hover:text-foreground"
@@ -157,7 +155,7 @@ function SidebarNavItem({ item, enableNestedNav }) {
       >
         <Icon
           className={cn(
-            "h-4 w-4 shrink-0 transition-transform duration-fast ease-standard",
+            "h-5 w-5 shrink-0 transition-transform duration-fast ease-standard",
             isActive && variant === "gradient" && "text-primary-foreground",
             isActive && variant !== "gradient" && "text-primary"
           )}
@@ -171,44 +169,13 @@ function SidebarNavItem({ item, enableNestedNav }) {
         {hasSubmenu && (
           <ChevronDown
             className={cn(
-              "h-4 w-4 transition-transform duration-fast ease-standard",
+              "h-5 w-5 transition-transform duration-fast ease-standard",
               isExpanded && "rotate-180"
             )}
           />
         )}
         {isActive && variant === "split" && (
-          <ChevronRight className="h-4 w-4 text-primary" />
-        )}
-        {!hasSubmenu && (
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              onPinItem(item.href);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                e.stopPropagation();
-                onPinItem(item.href);
-              }
-            }}
-            className={cn(
-              "absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-fast ease-standard",
-              "p-1 rounded hover:bg-state-hover-bg cursor-pointer select-none"
-            )}
-            aria-label={pinnedItems.includes(item.href) ? "Unpin" : "Pin"}
-          >
-            <Star
-              className={cn(
-                "h-3 w-3",
-                pinnedItems.includes(item.href)
-                  ? "fill-primary text-primary"
-                  : "text-muted-foreground"
-              )}
-            />
-          </span>
+          <ChevronRight className="h-5 w-5 text-primary" />
         )}
       </button>
       {hasSubmenu && isExpanded && (
@@ -226,14 +193,14 @@ function SidebarNavItem({ item, enableNestedNav }) {
                 onClick={() => onNavChange?.(subItem.href)}
                 disabled={isSubNavigating}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-fast ease-standard",
+                  "flex w-full items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-all duration-fast ease-standard",
                   isSubActive
                     ? "bg-primary/10 text-primary font-medium"
                     : "text-muted-foreground hover:bg-state-hover-bg hover:text-foreground",
                   isSubNavigating && "opacity-70 cursor-wait"
                 )}
               >
-                {SubIcon && <SubIcon className="h-3.5 w-3.5" />}
+                {SubIcon && <SubIcon className="h-4 w-4" />}
                 <span className="flex-1 text-left">{subItem.label}</span>
                 {subItem.badge && (
                   <Badge

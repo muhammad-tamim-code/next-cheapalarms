@@ -1,6 +1,7 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
+import { BRAND } from "../config/brand";
 
 export default function SetPasswordPage() {
   const router = useRouter();
@@ -111,7 +112,7 @@ export default function SetPasswordPage() {
     return (
       <>
         <Head>
-          <title>Set Your Password - CheapAlarms</title>
+          <title>Set Your Password - {BRAND.name}</title>
         </Head>
         <div className="flex min-h-screen items-center justify-center bg-muted p-4">
           <div className="w-full max-w-md bg-card rounded-lg shadow-lg p-6 border border-border">
@@ -129,7 +130,7 @@ export default function SetPasswordPage() {
     return (
       <>
         <Head>
-          <title>Set Your Password - CheapAlarms</title>
+          <title>Set Your Password - {BRAND.name}</title>
         </Head>
         <div className="flex min-h-screen items-center justify-center bg-muted p-4">
           <div className="w-full max-w-md bg-card rounded-lg shadow-lg p-6 border border-border">
@@ -152,7 +153,7 @@ export default function SetPasswordPage() {
     return (
       <>
         <Head>
-          <title>Set Your Password - CheapAlarms</title>
+          <title>Set Your Password - {BRAND.name}</title>
         </Head>
         <div className="flex min-h-screen items-center justify-center bg-muted p-4">
           <div className="w-full max-w-md bg-card rounded-lg shadow-lg p-6 border border-border">
@@ -170,7 +171,7 @@ export default function SetPasswordPage() {
     return (
       <>
         <Head>
-          <title>Set Your Password - CheapAlarms</title>
+          <title>Set Your Password - {BRAND.name}</title>
         </Head>
         <div className="flex min-h-screen items-center justify-center bg-muted p-4">
           <div className="w-full max-w-md bg-card rounded-lg shadow-lg p-6 border border-border">
@@ -192,13 +193,13 @@ export default function SetPasswordPage() {
   return (
     <>
       <Head>
-        <title>Set Your Password - CheapAlarms</title>
+        <title>Set Your Password - {BRAND.name}</title>
       </Head>
       <div className="flex min-h-screen items-center justify-center bg-muted p-4">
         <div className="w-full max-w-md bg-card rounded-lg shadow-lg p-6 border border-border">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-foreground mb-2">Set Your Password</h1>
-            <p className="text-muted-foreground">Create a secure password for your CheapAlarms portal</p>
+            <p className="text-muted-foreground">Create a secure password for your {BRAND.name} portal</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

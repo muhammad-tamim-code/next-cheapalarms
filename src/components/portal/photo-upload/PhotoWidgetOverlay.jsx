@@ -7,7 +7,7 @@ import { PhotoUploadView } from "./PhotoUploadView";
  * Slides in from right on desktop (480px drawer)
  * Full screen on mobile
  */
-export function PhotoWidgetOverlay({ isOpen, onClose, estimateId, locationId }) {
+export function PhotoWidgetOverlay({ isOpen, onClose, estimateId, locationId, view }) {
   // Prevent body scroll when open (client-side only)
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -59,6 +59,7 @@ export function PhotoWidgetOverlay({ isOpen, onClose, estimateId, locationId }) 
           <PhotoUploadView 
             estimateId={estimateId}
             locationId={locationId}
+            view={view}
             onComplete={onClose}
           />
         </div>

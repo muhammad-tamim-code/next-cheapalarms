@@ -4,7 +4,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useAdminEstimates,
   useAdminEstimatesTrash,
-  useAdminEstimatesChart,
   useDeleteEstimate,
   useBulkDeleteEstimates,
 } from "../react-query/hooks/admin";
@@ -31,8 +30,7 @@ export function useEstimatesListState() {
   const [deleteScope, setDeleteScope] = useState("local");
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  const [bulkDeleteScope, setBulkDeleteScope] = useState("both");
-  const [chartRange, setChartRange] = useState("30d");
+  const [bulkDeleteScope, setBulkDeleteScope] = useState("local");
 
   const pageSize = DEFAULT_PAGE_SIZE;
   const estimateIdFromQuery = router.query.estimateId;
@@ -64,15 +62,6 @@ export function useEstimatesListState() {
     locationId: locationId || undefined,
     limit: 100,
     enabled: activeTab === "trash",
-  });
-
-  const {
-    data: chartData,
-    isLoading: chartLoading,
-    error: chartError,
-  } = useAdminEstimatesChart({
-    range: chartRange,
-    enabled: activeTab !== "trash",
   });
 
   const handleRefresh = useCallback(() => {
@@ -321,8 +310,6 @@ export function useEstimatesListState() {
     locationId,
     setLocationId,
     pageSize,
-    chartRange,
-    setChartRange,
     deleteDialogOpen,
     setDeleteDialogOpen,
     estimateToDelete,
@@ -344,9 +331,6 @@ export function useEstimatesListState() {
     trashLoading,
     trashError,
     refetchTrash,
-    chartData,
-    chartLoading,
-    chartError,
     estimates,
     total,
     totalPages,

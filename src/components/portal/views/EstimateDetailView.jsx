@@ -64,6 +64,7 @@ export function EstimateDetailView({
           locationId={view?.locationId}
           view={view}
           onLaunchCamera={() => {}}
+          onOpenPhotoManager={onNavigateToPhotos}
         />
         
         {/* Payment → Booking → Approval workflow */}
