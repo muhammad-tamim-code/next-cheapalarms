@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import Head from 'next/head';
 import { Inter, Space_Grotesk } from 'next/font/google';
 import '../styles/globals.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../lib/react-query/query-client';
 import { Toaster } from '../components/ui/sonner';
+import { getBrandLogo } from '../config/brand';
 
 // Load Inter font - optimized for UI, professional, perfect for security/tech industry
 const inter = Inter({
@@ -111,6 +113,9 @@ export default function App({ Component, pageProps }) {
 
   return (
     <QueryClientProvider client={client}>
+      <Head>
+        <link rel="icon" href={getBrandLogo('mark', 'icon')} type="image/png" />
+      </Head>
       {/* Apply font variables at render time (SSR + client) so Inter loads
           immediately with no fallback flash. This is the single source for fonts. */}
       <div className={`${inter.variable} ${spaceGrotesk.variable} font-sans`}>

@@ -4,6 +4,7 @@ import { Button } from "../../ui/button";
 import { Sidebar as UISidebar } from "../../ui/sidebar";
 import { SignOutButton } from "../../ui/sign-out-button";
 import { BRAND } from "../../../config/brand";
+import { BrandLogo } from "../../brand/BrandLogo";
 
 const CUSTOMER_NAV_ITEMS = [
   { label: "Overview", icon: Sparkles, href: "#overview" },
@@ -57,6 +58,7 @@ export function PortalSidebar({ activeNav, onNavChange, estimateId, onBackToList
         <div className="flex flex-col h-full max-h-screen">
           {/* Header */}
           <div className="px-6 py-6 border-b border-primary/10">
+            <BrandLogo context="compact" size="sm" framed className="mb-3" />
             <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground font-medium">{BRAND.name}</p>
             <p className="mt-2 text-lg font-semibold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Customer Portal

@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Package, FileText, FilePlus2, Receipt, Mail, Users,
   UserCog, Settings, Plug, ScrollText, Search, Bell, ChevronDown, LogOut, Menu, X,
 } from "lucide-react";
-import { BRAND } from "../../../config/brand";
+import { BrandLogo } from "../../brand/BrandLogo";
 import { navItems } from "../nav";
 import { hasPermission } from "../../../lib/auth/hasPermission";
 
@@ -59,11 +59,7 @@ export default function AdminLayout({ title, subtitle, authContext, children }) 
     <>
       <div className="flex items-center justify-between px-6 py-6">
         <Link href="/admin" className="flex items-center gap-3">
-          {/* Logo slot — swap for an <img> when a tenant logo is configured */}
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-white font-bold text-neutral-950">
-            {BRAND.name.charAt(0).toUpperCase()}
-          </div>
-          <span className="text-lg font-semibold tracking-tight text-white">{BRAND.name}</span>
+          <BrandLogo context="sidebar" size="sm" priority />
         </Link>
         <button className="text-neutral-400 md:hidden" onClick={() => setMobileOpen(false)} aria-label="Close menu">
           <X className="h-5 w-5" />

@@ -2,7 +2,8 @@
  * LoginCard — two-column split layout (hero + form)
  */
 
-import { Shield } from "lucide-react";
+import { BrandLogo } from "../brand/BrandLogo";
+import { BRAND } from "../../config/brand";
 
 export function LoginCard({ children }) {
   return (
@@ -20,16 +21,13 @@ export function LoginCard({ children }) {
             <div className="absolute right-0 top-1/2 h-64 w-64 -translate-y-1/2 translate-x-1/3 rounded-full bg-white/10 blur-2xl" />
           </div>
 
-          <div className="relative z-10 space-y-4">
-            <div className="inline-flex items-center justify-center rounded-2xl bg-white/15 p-3 backdrop-blur-sm">
-              <Shield className="h-8 w-8 text-white" aria-hidden="true" />
-            </div>
+          <div className="relative z-10 space-y-5">
+            <BrandLogo variant="horizontal" size="lg" priority />
             <h2 className="text-3xl font-bold leading-tight tracking-tight md:text-4xl">
               Welcome back
             </h2>
             <p className="max-w-sm text-sm leading-relaxed text-white/85 md:text-base">
-              Sign in to manage quotes, customer portals, and installations — everything
-              for your security business in one place.
+              Sign in to manage quotes, customer portals, and installations for {BRAND.name}.
             </p>
           </div>
         </aside>
