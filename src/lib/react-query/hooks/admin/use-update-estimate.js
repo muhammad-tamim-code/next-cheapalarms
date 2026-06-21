@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../../api/apiFetch';
-import { DEFAULT_CURRENCY } from '../../../admin/constants';
-import { cleanDiscountForGhl, formatGhlLineItems } from '../../../admin/formatGhlEstimatePayload';
+import { GHL_CURRENCY } from '../../../admin/constants';
+import { cleanDiscountForGhl, formatGhlLineItems, toGhlCurrency } from '../../../admin/formatGhlEstimatePayload';
 import { BRAND } from '../../../../config/brand';
 
 /**
@@ -37,7 +37,7 @@ export function useUpdateEstimate() {
       const current = currentData;
 
       // Build compliant update payload
-      const currency = current.currency || DEFAULT_CURRENCY;
+      const currency = toGhlCurrency(current.currency || GHL_CURRENCY);
       const name40 = (current.title || 'Estimate').substring(0, 40);
       const title = current.title || 'ESTIMATE';
       

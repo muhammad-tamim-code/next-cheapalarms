@@ -43,7 +43,7 @@ export function GuestAccessBanner({
   if (!visible) return null;
 
   return (
-    <div className="rounded-[32px] border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-6 shadow-[0_25px_80px_rgba(201,83,117,0.12)]">
+    <div className="rounded-[32px] border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-6 shadow-[0_25px_80px_rgba(0,0,0,0.08)]">
       <div className="flex items-start gap-4">
         {/* Icon */}
         <div className="rounded-full bg-primary/10 p-3 flex-shrink-0">

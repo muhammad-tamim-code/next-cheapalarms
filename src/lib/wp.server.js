@@ -101,10 +101,10 @@ async function wpFetch(path, options = {}) {
   }
 }
 
-export async function authenticate({ username, password }) {
+export async function authenticate({ username, password, remember = false }) {
   return wpFetch("/ca/v1/auth/token", {
     method: "POST",
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, remember: Boolean(remember) }),
     headers: {
       "Content-Type": "application/json",
     },

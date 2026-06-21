@@ -421,13 +421,12 @@ export function useEstimateLineItems({
 
       const amount = Number(item?.amount || 0);
 
-      return Number.isNaN(amount) || Number.isNaN(qty) || amount <= 0 || qty <= 0;
-
+      return Number.isNaN(amount) || Number.isNaN(qty) || amount < 0 || qty <= 0;
     });
 
     if (invalid.length > 0) {
 
-      return 'All items must have a positive price and quantity';
+      return 'All items need a valid quantity; prices cannot be negative';
 
     }
 
@@ -458,6 +457,12 @@ export function useEstimateLineItems({
         isCustom: item?.isCustom ?? false,
 
         photoRequired: item?.photoRequired ?? false,
+
+        image: item?.image || '',
+
+        ghlProductId: item?.ghlProductId || '',
+
+        sku: item?.sku || '',
 
       })),
 

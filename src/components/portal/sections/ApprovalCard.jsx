@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  Camera,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
@@ -19,7 +20,8 @@ import { Button } from "../../ui/button";
 import { Textarea } from "../../ui/textarea";
 import { toast } from "sonner";
 
-export function ApprovalCard({ view, estimateId, locationId, onUploadPhotos }) {
+export function ApprovalCard({ view, estimateId, locationId, onUploadPhotos, variant }) {
+  const isOverview = variant === "overview";
   const quoteStatus = view?.quote?.status || "sent";
   const hasPhotos = (view?.photos?.items?.length || 0) > 0;
   const total = view?.quote?.total || 0;
@@ -52,6 +54,8 @@ export function ApprovalCard({ view, estimateId, locationId, onUploadPhotos }) {
   const rejectMutation = useRejectEstimate();
   const retryInvoiceMutation = useRetryInvoice();
   const requestReviewMutation = useRequestReview();
+
+  const showPhotoPrompt = !scheduledFor && !isAccepted && !isRejected && (!canAccept || isOverview);
 
   const isProcessing =
     acceptMutation.isPending ||
@@ -179,7 +183,7 @@ export function ApprovalCard({ view, estimateId, locationId, onUploadPhotos }) {
           </div>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className={`mt-5 grid gap-4 ${isOverview ? "grid-cols-1 sm:grid-cols-2" : "md:grid-cols-2"}`}>
           <div className="rounded-2xl border border-border bg-muted p-4">
             <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
               Estimate total
@@ -206,6 +210,30 @@ export function ApprovalCard({ view, estimateId, locationId, onUploadPhotos }) {
                 : "Preliminary pricing"}
             </p>
           </div>
+          {showPhotoPrompt ? (
+            <button
+              type="button"
+              onClick={onUploadPhotos}
+              className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-secondary/10 to-warning-bg p-4 text-left transition hover:border-primary/50"
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <Camera className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">
+                    Upload photos
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    You may qualify for a lower price
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Share clear install photos — our team reviews them and sends updated pricing when ready.
+                  </p>
+                </div>
+              </div>
+            </button>
+          ) : (
           <div className="rounded-2xl border border-border bg-muted p-4">
             <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
               Install window
@@ -239,6 +267,7 @@ export function ApprovalCard({ view, estimateId, locationId, onUploadPhotos }) {
               Tentative until approval
             </p>
           </div>
+          )}
         </div>
 
         {/* Status Display - Only render after mount to prevent hydration mismatch */}
@@ -393,8 +422,63 @@ export function ApprovalCard({ view, estimateId, locationId, onUploadPhotos }) {
                   </Button>
                 )}
 
-                {/* Accept Button - Only show when acceptance is enabled */}
-                {canAccept && (
+                {/* Accept + Reject — overview uses inline row; accept stays disabled until review */}
+                {isOverview && !isAccepted && !isRejected && (
+                  <>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        onClick={handleAccept}
+                        disabled={!canAccept || isProcessing}
+                        variant="default"
+                        title={
+                          !canAccept
+                            ? "Available after we review your photos and send updated pricing"
+                            : undefined
+                        }
+                        className="h-auto flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-xs font-semibold uppercase tracking-[0.2em] shadow transition bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50"
+                      >
+                        {isProcessing ? (
+                          <>
+                            <Spinner size="sm" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <span>Accept</span>
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleReject}
+                        disabled={!uiState.canReject || isProcessing}
+                        variant="destructive"
+                        className="h-auto flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-xs font-semibold uppercase tracking-[0.2em] shadow transition disabled:opacity-50"
+                      >
+                        {isProcessing ? (
+                          <>
+                            <Spinner size="sm" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <span>Reject</span>
+                            <XCircle className="h-3.5 w-3.5" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {!canAccept && (
+                      <p className="text-center text-xs text-muted-foreground">
+                        Accept unlocks after we review your photos and send updated pricing.
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {!isOverview && canAccept && (
                   <Button
                     type="button"
                     onClick={handleAccept}
@@ -416,8 +500,7 @@ export function ApprovalCard({ view, estimateId, locationId, onUploadPhotos }) {
                   </Button>
                 )}
 
-                {/* Reject Button - Show when estimate can be rejected (use status computer logic) */}
-                {uiState.canReject && (
+                {!isOverview && uiState.canReject && (
                   <Button
                     type="button"
                     onClick={handleReject}
@@ -437,6 +520,12 @@ export function ApprovalCard({ view, estimateId, locationId, onUploadPhotos }) {
                       </>
                     )}
                   </Button>
+                )}
+
+                {isOverview && !canAccept && !isAccepted && !isRejected && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    Accept unlocks after we review your photos and send updated pricing.
+                  </p>
                 )}
               </>
             ) : (

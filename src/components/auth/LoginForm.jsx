@@ -63,6 +63,7 @@ export function LoginForm() {
           body: JSON.stringify({
             username: form.username,
             password: form.password,
+            remember,
           }),
           signal: controller.signal,
         });

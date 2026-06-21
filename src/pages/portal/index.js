@@ -1,7 +1,11 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
+import { useState } from "react";
 import { cookieHeader } from "../../components/portal/utils/portal-utils";
 import { PortalSidebar } from "../../components/portal/layout/PortalSidebar";
+import { PortalBottomNav } from "../../components/portal/layout/PortalBottomNav";
+import { PortalMobileHeader } from "../../components/portal/layout/PortalMobileHeader";
+import { PortalMobileMenu } from "../../components/portal/layout/PortalMobileMenu";
 import { OverviewView } from "../../components/portal/views/OverviewView";
 import { EstimatesListView } from "../../components/portal/views/EstimatesListView";
 import { EstimateDetailView } from "../../components/portal/views/EstimateDetailView";
@@ -22,12 +26,15 @@ import { BRAND } from "../../config/brand";
 
 export default function PortalPage({ initialStatus, initialError, initialEstimateId, initialEstimates }) {
   const router = useRouter();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const {
     estimateId,
     inviteToken,
     activeNav,
     view,
+    overviewView,
+    overviewEstimateId,
     estimates,
     estimateData,
     loading,
@@ -42,6 +49,7 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
     handleNavigateToPhotos,
     handleNextEstimate,
     handlePrevEstimate,
+    handleSelectOverviewQuote,
     currentEstimateIndex,
     resumeEstimate,
     missionSteps,
@@ -61,27 +69,43 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
       <main className="light h-screen w-full bg-background text-foreground overflow-hidden">
         {/* Force light theme - portals don't support theme switching */}
         <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(201,83,117,0.15),transparent_45%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(47,182,201,0.18),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,0,0,0.05),transparent_45%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(0,0,0,0.04),transparent_50%)]" />
         </div>
-        <div className="flex h-full w-full gap-6">
-          <PortalSidebar
-            activeNav={activeNav}
-            onNavChange={handleNavigateToSection}
-            estimateId={estimateId}
-            onBackToList={handleBackToList}
-            support={view?.support}
-            badges={{ photos: photoBadgeCount }}
-            onPhotosClick={handleNavigateToPhotos}
-          />
+        <div className="flex h-full w-full md:gap-6">
+          <div className="hidden shrink-0 md:block">
+            <PortalSidebar
+              activeNav={activeNav}
+              onNavChange={handleNavigateToSection}
+              estimateId={estimateId}
+              onBackToList={handleBackToList}
+              support={(overviewView ?? view)?.support}
+              badges={{ photos: photoBadgeCount }}
+              onPhotosClick={handleNavigateToPhotos}
+            />
+          </div>
 
-          <section className="flex-1 overflow-y-auto px-6 py-10 space-y-6">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <PortalMobileHeader
+              onMenuClick={() => setMobileMenuOpen(true)}
+              onPreferencesClick={() => handleNavigateToSection("preferences")}
+            />
+            <PortalMobileMenu
+              open={mobileMenuOpen}
+              onOpenChange={setMobileMenuOpen}
+              activeNav={activeNav}
+              onNavChange={handleNavigateToSection}
+              onPhotosClick={handleNavigateToPhotos}
+              badges={{ photos: photoBadgeCount }}
+            />
+
+            <section className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-10">
             <PortalErrorBoundary>
             {/* Guest Access Banner */}
-            {view?.isGuestMode && (
+            {((overviewView ?? view)?.isGuestMode) && (
               <GuestAccessBanner 
-                daysRemaining={view?.daysRemaining ?? null}
-                estimateId={estimateId}
+                daysRemaining={(overviewView ?? view)?.daysRemaining ?? null}
+                estimateId={overviewEstimateId ?? estimateId}
                 onCreateAccount={() => {
                   // Will be implemented with CreateAccountModal
                   router.push(`/set-password?estimateId=${estimateId}`);
@@ -134,13 +158,14 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
                     estimate={overviewEstimate}
                     estimates={estimates}
                     currentEstimateIndex={currentEstimateIndex}
-                    onNextEstimate={handleNextEstimate}
-                    onPrevEstimate={handlePrevEstimate}
+                    onSelectQuote={handleSelectOverviewQuote}
                     onUploadImages={handleUploadImages}
+                    onNavigateToPhotos={handleNavigateToPhotos}
                     onViewDetails={handleViewDetails}
                     onViewAll={!estimateId && estimates.length > 1 ? () => handleNavigateToSection("estimates") : undefined}
-                    view={view}
-                    estimateId={estimateId}
+                    view={overviewView ?? view}
+                    estimateId={overviewEstimateId ?? estimateId}
+                    pendingPhotoCount={photoBadgeCount ?? (overviewView ?? view)?.photos?.missingCount ?? 0}
                   />
                 )}
               </>
@@ -238,6 +263,14 @@ export default function PortalPage({ initialStatus, initialError, initialEstimat
             {activeNav === "preferences" && <PreferencesView view={view} />}
             </PortalErrorBoundary>
           </section>
+
+            <PortalBottomNav
+              activeNav={activeNav}
+              badges={{ photos: photoBadgeCount }}
+              onNavChange={handleNavigateToSection}
+              onPhotosClick={handleNavigateToPhotos}
+            />
+          </div>
         </div>
       </main>
     </>

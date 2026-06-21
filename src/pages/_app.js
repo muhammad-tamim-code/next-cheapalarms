@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Inter, Space_Grotesk } from 'next/font/google';
 import '../styles/globals.css';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -109,18 +109,14 @@ export default function App({ Component, pageProps }) {
   // This prevents creating a new client on every render
   const [client] = useState(() => queryClient);
 
-  // Apply font variables to html element on mount (client-side only to avoid hydration issues)
-  useEffect(() => {
-    if (typeof document !== 'undefined') {
-      document.documentElement.classList.add(inter.variable);
-      document.documentElement.classList.add(spaceGrotesk.variable);
-    }
-  }, []);
-
   return (
     <QueryClientProvider client={client}>
-      <Component {...pageProps} />
-      <Toaster 
+      {/* Apply font variables at render time (SSR + client) so Inter loads
+          immediately with no fallback flash. This is the single source for fonts. */}
+      <div className={`${inter.variable} ${spaceGrotesk.variable} font-sans`}>
+        <Component {...pageProps} />
+      </div>
+      <Toaster
         position="top-right"
         richColors
         closeButton

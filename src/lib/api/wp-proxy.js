@@ -118,6 +118,7 @@ export async function proxyToWordPress(req, res, wpPath, options = {}) {
     transformRequest = (body) => body,
     transformResponse = (body) => body,
     buildPath = null,
+    timeout = API_TIMEOUT,
   } = options;
 
   // Check method
@@ -164,7 +165,7 @@ export async function proxyToWordPress(req, res, wpPath, options = {}) {
 
     const wpUrl = `${wpBase}${finalPath}`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
     fetchOptions.signal = controller.signal;
 
     let wpResp;

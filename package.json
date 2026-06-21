@@ -9,7 +9,6 @@
     "lint": "eslint",
     "test:e2e": "playwright test",
     "test:e2e:roles": "playwright test tests/e2e/roles-permissions.spec.js",
-    "deploy:plugin": "bash ../deploy-plugin.sh",
     "sync:config": "node ../scripts/sync-instance-config.mjs"
   },
   "dependencies": {

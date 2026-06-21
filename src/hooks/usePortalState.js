@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useCallback, useState } from "react";
+import { useEffect, useMemo, useCallback, useState, useRef } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { usePortalStatus, usePortalDashboard, useEstimate } from "../lib/react-query/hooks";
 import { normaliseStatus } from "../components/portal/utils/status-normalizer";
@@ -83,7 +83,9 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
     inviteToken: inviteToken || null,
     // Only fetch full estimate (items/pricing) when user is on a section that
     // needs line-items. This avoids heavy GHL-backed calls on overview/payments/etc.
-    enabled: !!estimateId && router.isReady && (activeNav === "estimates" || activeNav === "photos"),
+    enabled: !!estimateId && router.isReady && (
+      activeNav === "estimates" || activeNav === "photos" || activeNav === "overview"
+    ),
     initialData: null,
   });
 
@@ -111,14 +113,19 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
 
   // Local state for overview estimate index (client-side switching, no URL changes)
   const [overviewIndex, setOverviewIndex] = useState(0);
+  const overviewIdsKeyRef = useRef("");
 
-  // Reset overview index when estimates change
-   
+  // Default to latest quote when the estimate list loads or changes
   useEffect(() => {
-    if (estimates.length > 0 && overviewIndex >= estimates.length) {
-      setOverviewIndex(0);
+    if (estimates.length === 0) return;
+    const idsKey = estimates.map((e) => e.estimateId).join(",");
+    if (idsKey !== overviewIdsKeyRef.current) {
+      overviewIdsKeyRef.current = idsKey;
+      setOverviewIndex(estimates.length - 1);
+    } else if (overviewIndex >= estimates.length) {
+      setOverviewIndex(estimates.length - 1);
     }
-  }, [estimates.length, overviewIndex]);
+  }, [estimates, overviewIndex]);
 
   // Optimized: Only fetch current estimate + prefetch next/prev (not all at once)
   const shouldFetchEstimates = activeNav === 'overview' && !estimateId && estimates.length > 0;
@@ -170,19 +177,24 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
           inviteToken: inviteToken || undefined,
         };
         
-        const [status, estimate] = await Promise.all([
+        const [status, estimateRes] = await Promise.all([
           apiFetch('/api/portal/status', { params }),
           apiFetch('/api/estimate', { params }).catch(() => null),
         ]);
 
+        const estimateOk = estimateRes && estimateRes.ok !== false;
+        const lineItems = estimateOk && Array.isArray(estimateRes.items) ? estimateRes.items : [];
+
         // Merge the data (same format as original getEstimateDetails)
         return {
           ...status,
-          // Add estimate line items and pricing if available
-          items: estimate?.items || [],
-          subtotal: estimate?.subtotal || 0,
-          taxTotal: estimate?.taxTotal || 0,
-          total: estimate?.total || status?.quote?.total || 0,
+          items: lineItems,
+          subtotal: estimateOk ? (estimateRes.subtotal || 0) : 0,
+          taxTotal: estimateOk ? (estimateRes.taxTotal || 0) : 0,
+          total: estimateOk
+            ? (estimateRes.total || status?.quote?.total || 0)
+            : (status?.quote?.total || 0),
+          currency: estimateOk ? (estimateRes.currency || 'AUD') : (status?.quote?.currency || 'AUD'),
         };
       },
       staleTime: 5 * 60 * 1000, // Cache for 5 minutes
@@ -220,15 +232,34 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
       return {
         ...est,
         ...details,
-        // Keep basic fields from dashboard
         estimateId: est.estimateId,
         locationId: est.locationId,
         portalUrl: est.portalUrl,
         resetUrl: est.resetUrl,
         lastInviteAt: est.lastInviteAt,
+        items: Array.isArray(details.items) ? details.items : [],
+        subtotal: details.subtotal ?? 0,
+        taxTotal: details.taxTotal ?? 0,
+        total: details.total ?? est.total ?? details.quote?.total ?? 0,
       };
     });
   }, [estimates, estimateDetailsMap, shouldFetchEstimates]);
+
+  // Status view for the quote currently shown on Overview (logged-in, no estimateId in URL)
+  const overviewView = useMemo(() => {
+    if (estimateId) return view;
+    if (activeNav !== "overview" || enrichedEstimates.length === 0) return null;
+    const current = enrichedEstimates[overviewIndex];
+    if (!current?.estimateId) return null;
+    const details = estimateDetailsMap.get(current.estimateId);
+    return details ? normaliseStatus(details) : null;
+  }, [estimateId, view, activeNav, enrichedEstimates, overviewIndex, estimateDetailsMap]);
+
+  const overviewEstimateId = useMemo(() => {
+    if (estimateId) return estimateId;
+    const current = enrichedEstimates[overviewIndex];
+    return current?.estimateId || null;
+  }, [estimateId, enrichedEstimates, overviewIndex]);
 
   // Check if we're still loading the current estimate details
   const currentEstimate = estimates[overviewIndex];
@@ -327,35 +358,32 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
       );
       if (found) return found;
     }
-    return estimates[0];
+    return estimates[estimates.length - 1];
   }, [estimates, lastViewedEstimateId]);
 
-  const handleUploadImages = useCallback(() => {
-    if (!estimateId) {
-      if (resumeEstimate) {
-        handleSelectEstimate(resumeEstimate.estimateId || resumeEstimate.id);
-      }
-      return;
-    }
-    handleNavigateToSection("estimates");
-  }, [estimateId, resumeEstimate, handleSelectEstimate, handleNavigateToSection]);
+  const getActiveEstimateId = useCallback(() => {
+    if (estimateId) return estimateId;
+    const current = enrichedEstimates[overviewIndex];
+    return (
+      current?.estimateId ||
+      current?.id ||
+      resumeEstimate?.estimateId ||
+      resumeEstimate?.id ||
+      null
+    );
+  }, [estimateId, enrichedEstimates, overviewIndex, resumeEstimate]);
 
   const handleNavigateToPhotos = useCallback(() => {
-    // Photos is a dedicated section. If no estimate is selected yet, fall back
-    // to the most-recently-viewed one so the page actually has data to load.
-    if (!estimateId) {
-      if (resumeEstimate) {
-        const id = resumeEstimate.estimateId || resumeEstimate.id;
-        const params = new URLSearchParams();
-        params.set("estimateId", id);
-        params.set("section", "photos");
-        if (inviteToken) params.set("inviteToken", inviteToken);
-        router.push(`/portal?${params.toString()}`);
-      }
-      return;
-    }
-    handleNavigateToSection("photos");
-  }, [estimateId, handleNavigateToSection, resumeEstimate, inviteToken, router]);
+    const id = getActiveEstimateId();
+    if (!id) return;
+    const params = new URLSearchParams();
+    params.set("estimateId", id);
+    params.set("section", "photos");
+    if (inviteToken) params.set("inviteToken", inviteToken);
+    router.push(`/portal?${params.toString()}`);
+  }, [getActiveEstimateId, inviteToken, router]);
+
+  const handleUploadImages = handleNavigateToPhotos;
 
   // Navigate to next/previous estimate (client-side only, no URL changes on overview)
   const handleNextEstimate = useCallback(() => {
@@ -398,6 +426,15 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
     }
   }, [enrichedEstimates, estimateId, activeNav, handleSelectEstimate]);
 
+  const handleSelectOverviewQuote = useCallback((targetEstimateId) => {
+    const idx = enrichedEstimates.findIndex(
+      (e) => String(e.estimateId || e.id) === String(targetEstimateId)
+    );
+    if (idx >= 0) {
+      setOverviewIndex(idx);
+    }
+  }, [enrichedEstimates]);
+
   // Get current estimate index for display
   const currentEstimateIndex = useMemo(() => {
     if (enrichedEstimates.length === 0) return 0;
@@ -429,17 +466,20 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
   }, [view]);
 
   const photoItems = useMemo(() => {
-    const items = estimateData?.ok ? estimateData.items || [] : [];
-    
+    const activeView = estimateId ? view : overviewView;
+    const items = estimateId
+      ? (estimateData?.ok ? estimateData.items || [] : [])
+      : (enrichedEstimates[overviewIndex]?.items || []);
+
     if (items.length === 0) return [];
-    
-    const uploadedPhotos = view?.photos?.items || [];
+
+    const uploadedPhotos = activeView?.photos?.items || [];
     const photoCountsByItem = {};
     uploadedPhotos.forEach((photo) => {
       const itemName = photo.itemName || "Unknown";
       photoCountsByItem[itemName] = (photoCountsByItem[itemName] || 0) + 1;
     });
-    
+
     const grouped = {};
     items.forEach((item) => {
       const itemName = item.name || "Unknown Item";
@@ -450,25 +490,28 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
           label: itemName,
           quantity: 0,
           status: uploadedCount > 0 ? "Uploaded" : "Pending",
-          uploadedCount: uploadedCount,
+          uploadedCount,
         };
       }
       grouped[itemName].quantity += qty;
     });
-    
+
     return Object.values(grouped);
-  }, [estimateData, view]);
+  }, [estimateId, view, overviewView, estimateData, enrichedEstimates, overviewIndex]);
 
   // Sidebar badge: count of required items that still need a photo. Respects
   // itemsMeta overrides — auto-detected `isHeading` packages are excluded, and
   // `photoRequired: false` items don't contribute. Returns null when the data
   // isn't loaded yet so the sidebar simply doesn't render a misleading badge.
   const photoBadgeCount = useMemo(() => {
-    if (!estimateId) return null;
-    const items = estimateData?.ok ? estimateData.items || [] : [];
+    const activeView = estimateId ? view : overviewView;
+    if (!activeView) return null;
+    const items = estimateId
+      ? (estimateData?.ok ? estimateData.items || [] : [])
+      : (enrichedEstimates[overviewIndex]?.items || []);
     if (items.length === 0) return null;
-    const itemsMeta = view?.itemsMeta || {};
-    const uploadedPhotos = view?.photos?.items || [];
+    const itemsMeta = activeView.itemsMeta || {};
+    const uploadedPhotos = activeView.photos?.items || [];
     const uploadedCounts = {};
     uploadedPhotos.forEach((photo) => {
       const name = photo.itemName || "Unknown";
@@ -487,17 +530,17 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
       if ((uploadedCounts[name] || 0) === 0) pending += 1;
     });
     return pending > 0 ? pending : null;
-  }, [estimateId, estimateData, view]);
+  }, [estimateId, estimateData, view, overviewView, enrichedEstimates, overviewIndex]);
 
   const activityFeed = useMemo(() => {
+    const activeView = estimateId ? view : overviewView;
     const entries = [];
-    
-    // Add revision history entries (estimate edits by admin)
-    if (view?.revisionHistory && Array.isArray(view.revisionHistory)) {
-      const sortedRevisions = [...view.revisionHistory].sort((a, b) => 
+
+    if (activeView?.revisionHistory && Array.isArray(activeView.revisionHistory)) {
+      const sortedRevisions = [...activeView.revisionHistory].sort((a, b) =>
         new Date(b.revisedAt || 0) - new Date(a.revisedAt || 0)
       );
-      
+
       sortedRevisions.forEach((rev) => {
         const netChange = rev.netChange || 0;
         const lineChanges = rev.lineChanges || [];
@@ -540,13 +583,12 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
     }
     
     // Add any existing activity entries
-    if (view?.activity && Array.isArray(view.activity)) {
-      entries.push(...view.activity);
+    if (activeView?.activity && Array.isArray(activeView.activity)) {
+      entries.push(...activeView.activity);
     }
-    
-    // Return top 5 most recent
+
     return entries.slice(0, 5);
-  }, [view]);
+  }, [view, overviewView, estimateId]);
 
   const activeEstimate = useMemo(() => {
     if (!estimateId || !view) return null;
@@ -577,45 +619,37 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
     // When no estimateId in URL (overview page), use enrichedEstimates with local index
     if (!estimateId) {
       if (enrichedEstimates.length === 0) return null;
-      
-      // Get current estimate from enriched array
+
       const current = enrichedEstimates[overviewIndex];
       if (!current) return null;
-      
-      // If full details are loaded, use them
-      if (current.quote) {
-        return {
-          estimateId: current.estimateId,
-          number: current.quote?.number || current.number,
-          statusLabel: current.quote?.statusLabel || current.statusLabel || "Sent",
-          status: current.quote?.status || current.status || "sent",
-          statusValue: current.quote?.status || current.status || "sent",
-          address: formatAddress(current.installation?.address) || "Site address pending",
-          photosCount: current.photos?.items?.length || 0,
-          items: current.items || [],
-          subtotal: current.subtotal || 0,
-          taxTotal: current.taxTotal || 0,
-          total: current.total || current.quote?.total || 0,
-          label: `Estimate #${current.quote?.number || current.number || current.estimateId}`,
-          revision: current.revision || null, // Include revision data
-          currency: current.currency || DEFAULT_CURRENCY,
-        };
-      }
-      
-      // Fallback to basic info while loading
+
+      const details = estimateDetailsMap.get(current.estimateId);
+      const quote = current.quote ?? details?.quote ?? null;
+      const items = Array.isArray(details?.items) && details.items.length > 0
+        ? details.items
+        : (Array.isArray(current.items) ? current.items : []);
+      const subtotal = details?.subtotal ?? current.subtotal ?? 0;
+      const taxTotal = details?.taxTotal ?? current.taxTotal ?? 0;
+      const total = details?.total ?? current.total ?? quote?.total ?? 0;
+      const isLoadingDetails = shouldFetchEstimates && !details;
+
       return {
         estimateId: current.estimateId,
-        number: current.number,
-        statusLabel: current.statusLabel || "Sent",
-        status: current.status || "sent",
-        statusValue: current.status || "sent",
-        address: "Loading...",
-        photosCount: 0,
-        items: [],
-        subtotal: 0,
-        taxTotal: 0,
-        total: 0,
-        label: `Estimate #${current.number || current.estimateId}`,
+        number: quote?.number ?? current.number ?? current.estimateId,
+        statusLabel: quote?.statusLabel ?? current.statusLabel ?? "Sent",
+        status: quote?.status ?? current.status ?? "sent",
+        statusValue: quote?.status ?? current.status ?? "sent",
+        address: formatAddress(details?.installation?.address ?? current.installation?.address)
+          || (isLoadingDetails ? "Loading..." : "Site address pending"),
+        photosCount: details?.photos?.items?.length ?? current.photos?.items?.length ?? 0,
+        items,
+        subtotal,
+        taxTotal,
+        total,
+        label: `Estimate #${quote?.number ?? current.number ?? current.estimateId}`,
+        revision: details?.revision ?? current.revision ?? null,
+        currency: details?.currency ?? current.currency ?? DEFAULT_CURRENCY,
+        itemsLoading: isLoadingDetails && items.length === 0,
       };
     }
     
@@ -646,7 +680,7 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
     };
     
     return baseEstimate;
-  }, [estimateId, estimateData, enrichedEstimates, overviewIndex, view]);
+  }, [estimateId, estimateData, enrichedEstimates, overviewIndex, view, estimateDetailsMap, shouldFetchEstimates]);
 
   // Handler to view full estimate details (must be after overviewEstimate is defined)
   const handleViewDetails = useCallback(() => {
@@ -678,6 +712,8 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
     
     // Data
     view,
+    overviewView,
+    overviewEstimateId,
     estimates,
     estimateData,
     
@@ -696,6 +732,7 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
     handleNavigateToPhotos,
     handleNextEstimate,
     handlePrevEstimate,
+    handleSelectOverviewQuote,
     
     // Computed values
     currentEstimateIndex,

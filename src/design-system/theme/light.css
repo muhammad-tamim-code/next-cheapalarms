@@ -27,17 +27,19 @@
     
     /* Inputs */
     --color-input: 0 0% 89.8%;
-    --color-input-focus: 188 52% 37%;
-    
-    /* Brand */
-    --color-primary: 343 49% 58%;
+    --color-input-focus: 0 0% 25%;
+
+    /* Brand — neutral / business-agnostic. Monochrome so the product carries no
+       single brand's colour; the only brand expression is the logo + name slot.
+       (Swap these HSL triples to re-introduce a brand accent later if wanted.) */
+    --color-primary: 0 0% 9%;          /* near-black (neutral-900) */
     --color-primary-foreground: 0 0% 98%;
-    --color-primary-hover: 343 49% 52%;
-    --color-primary-active: 343 49% 45%;
-    
-    --color-secondary: 188 52% 37%;
+    --color-primary-hover: 0 0% 18%;
+    --color-primary-active: 0 0% 25%;
+
+    --color-secondary: 0 0% 40%;       /* neutral grey */
     --color-secondary-foreground: 0 0% 98%;
-    --color-secondary-hover: 188 52% 30%;
+    --color-secondary-hover: 0 0% 32%;
     
     /* Semantic */
     --color-success: 142 76% 36%;

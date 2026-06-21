@@ -1,605 +1,447 @@
 import Head from "next/head";
-import AdminLayout from "../../../components/admin/layout/AdminLayout";
+import Link from "next/link";
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "../../../components/ui/card";
-import { Button } from "../../../components/ui/button";
-import { Badge } from "../../../components/ui/badge";
-import { Input } from "../../../components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../../components/ui/tabs";
+  Search,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Users,
+  MoreVertical,
+  ExternalLink,
+  Trash2,
+  Mail,
+  RefreshCw,
+} from "lucide-react";
+import AdminLayout from "../../../components/admin/layout/AdminLayout";
 import { requireAdmin } from "../../../lib/auth/requireAdmin";
 import { hasPermission } from "../../../lib/auth/hasPermission";
-import { isAuthError, isPermissionError } from "../../../lib/admin/utils/error-handler";
 import { useCustomersListState } from "../../../lib/admin/useCustomersListState";
-import { Spinner } from "../../../components/ui/spinner";
+import { CustomerDetailPanel } from "../../../components/admin/CustomerDetailPanel";
+import { NewContactModal } from "../../../components/admin/NewContactModal";
 import { DeleteDialog } from "../../../components/admin/DeleteDialog";
-import { BulkDeleteDialog } from "../../../components/admin/BulkDeleteDialog";
-import { DeleteByEmailDialog } from "../../../components/admin/DeleteByEmailDialog";
-import { FloatingActionBar } from "../../../components/admin/FloatingActionBar";
-import { Checkbox } from "../../../components/ui/checkbox";
-import { Trash2 } from "lucide-react";
+import {
+  CUSTOMER_FILTER_TABS,
+  getAvatarColorClass,
+  getContactInitials,
+  pageNumbers,
+} from "../../../lib/admin/customers-utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../../components/ui/dropdown-menu";
 
-export default function AdminCustomers({
-  initialWpUsers,
-  initialGhlContacts,
-  error,
-  debugInfo,
-  authContext,
-}) {
+/* Customers — GHL contacts enriched with WP accounts + estimate/invoice activity. */
+
+export default function AdminCustomers({ authContext }) {
   const canDestructive = hasPermission(authContext, "data.destructive");
+  const s = useCustomersListState();
+
   const {
+    q,
+    handleSearchChange,
     activeTab,
     setActiveTab,
-    q,
-    setQ,
-    inviting,
+    page,
+    setPage,
+    pageSize,
+    total,
+    totalPages,
+    pageCustomers,
+    stats,
+    counts,
     loading,
-    refreshing,
-    wpErrMsg,
-    ghlErrMsg,
-    filteredWpUsers,
-    filteredGhlContacts,
-    selectedUserIds,
-    setSelectedUserIds,
-    handleSelectAllUsers,
-    handleSelectUser,
-    handleBulkDeleteUsers,
-    handleRefresh,
-    handleDeleteByEmail,
-    handleInviteGhlContact,
-    getStatusBadge,
-    deleteUserDialogOpen,
-    setDeleteUserDialogOpen,
-    userToDelete,
-    setUserToDelete,
-    deleteScope,
-    setDeleteScope,
-    handleDeleteUserConfirm,
-    deleteUserMutation,
-    deleteGhlContactDialogOpen,
-    setDeleteGhlContactDialogOpen,
-    ghlContactToDelete,
-    setGhlContactToDelete,
-    handleDeleteGhlContactConfirm,
-    deleteGhlContactMutation,
-    bulkDeleteDialogOpen,
-    setBulkDeleteDialogOpen,
-    bulkDeleteScope,
-    setBulkDeleteScope,
-    bulkDeleteUsersMutation,
-    deleteByEmailDialogOpen,
-    setDeleteByEmailDialogOpen,
-    deleteByEmailMutation,
-    refetchUsers,
+    errMsg,
     refetchContacts,
-    loadingUsers,
-    loadingContacts,
-    wpUsersIsError,
-    ghlContactsIsError,
-  } = useCustomersListState({ initialWpUsers, initialGhlContacts });
+    handleRefresh,
+    selectedContact,
+    handleRowClick,
+    handleClosePanel,
+    handleExport,
+    inviting,
+    handleInvite,
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    contactToDelete,
+    handleDeleteClick,
+    handleDeleteConfirm,
+    deleteGhlContactMutation,
+    newContactOpen,
+    setNewContactOpen,
+    handleCreateContact,
+    locationId,
+  } = s;
+
+  const tabs = CUSTOMER_FILTER_TABS.map((t) => ({
+    ...t,
+    count: counts[t.value] ?? 0,
+  }));
+
+  const statCards = [
+    { label: "Total customers", value: stats.total, hint: "All GHL contacts" },
+    {
+      label: "Portal accounts",
+      value: stats.portalCount,
+      hint: stats.total > 0 ? `${stats.portalPct}% of customers` : "With portal access",
+    },
+    { label: "Linked estimates", value: stats.totalEstimates, hint: "Across all customers" },
+    { label: "Linked invoices", value: stats.totalInvoices, hint: "Across all customers" },
+  ];
 
   return (
     <>
       <Head>
-        <title>Superadmin • Customers</title>
+        <title>Customers • Admin</title>
       </Head>
-      <AdminLayout title="Customers" authContext={authContext}>
-        {error && (
-          <Card className="mb-4 border border-error/30 bg-error-bg text-error">
-            <CardHeader>
-              <CardTitle>Error loading customers</CardTitle>
-              <CardDescription>{error}</CardDescription>
-              {debugInfo && (
-                <pre className="mt-2 text-xs overflow-auto">
-                  {JSON.stringify(debugInfo, null, 2)}
-                </pre>
-              )}
-            </CardHeader>
-          </Card>
-        )}
-
-        <Card>
-          <CardHeader className="flex items-center justify-between gap-3">
-            <div>
-              <CardTitle>Customers</CardTitle>
-              <CardDescription>Portal access and GHL contacts.</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Search name, email…"
-                className="w-64"
+      <AdminLayout
+        title="Customers"
+        subtitle="Manage customer contacts from GoHighLevel"
+        authContext={authContext}
+      >
+        <div className="space-y-5">
+          {/* Controls */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1 sm:max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+              <input
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Search customers…"
+                className="w-full rounded-lg border border-neutral-200 bg-white py-2 pl-9 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-neutral-400"
               />
-              <Button
-                variant="outline"
-                size="sm"
+            </div>
+            <div className="flex items-center gap-2 sm:ml-auto">
+              <button
+                type="button"
                 onClick={handleRefresh}
                 disabled={loading}
+                className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
               >
-                {refreshing ? (
-                  <span className="flex items-center gap-2">
-                    <Spinner size="sm" />
-                    Refreshing…
-                  </span>
-                ) : (
-                  "Refresh"
-                )}
-              </Button>
-              {hasPermission(authContext, "data.destructive") && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setDeleteByEmailDialogOpen(true)}
-                  className="gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete by Email
-                </Button>
-              )}
+                <RefreshCw className={["h-4 w-4", loading ? "animate-spin" : ""].join(" ")} />
+                Refresh
+              </button>
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={loading || total === 0}
+                className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                Export
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewContactOpen(true)}
+                className="flex items-center gap-2 rounded-lg bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+              >
+                <Plus className="h-4 w-4" />
+                New contact
+              </button>
             </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
-              <TabsList>
-                <TabsTrigger value="ghl">
-                  GHL Contacts ({filteredGhlContacts.length})
-                </TabsTrigger>
-                <TabsTrigger value="wp">
-                  WordPress Users ({filteredWpUsers.length})
-                </TabsTrigger>
-              </TabsList>
+          </div>
 
-              {/* GHL Contacts Tab */}
-              <TabsContent value="ghl" className="mt-4">
-                <div className="overflow-x-auto rounded-md border border-border/60">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
-                      <tr>
-                        <th className="px-3 py-2">Name</th>
-                        <th className="px-3 py-2">Email</th>
-                        <th className="px-3 py-2">Phone</th>
-                        <th className="px-3 py-2">Status</th>
-                        <th className="px-3 py-2">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ghlContactsIsError ? (
-                        <tr>
-                          <td
-                            className="px-3 py-6 text-center text-xs text-error"
-                            colSpan={5}
-                          >
-                            Failed to load GHL contacts. {ghlErrMsg}{" "}
-                            <button
-                              type="button"
-                              className="underline"
-                              onClick={() => refetchContacts()}
-                            >
-                              Retry
-                            </button>
-                          </td>
-                        </tr>
-                      ) : loadingContacts ? (
-                        <tr>
-                          <td
-                            className="px-3 py-6 text-center text-xs text-muted-foreground"
-                            colSpan={5}
-                          >
-                            <span className="inline-flex items-center gap-2">
-                              <Spinner size="sm" />
-                              Loading contacts…
-                            </span>
-                          </td>
-                        </tr>
-                      ) : (
-                        <>
-                          {filteredGhlContacts.map((contact) => {
-                            const badge = getStatusBadge(contact.status);
-                            const name =
-                              `${contact.firstName || ""} ${contact.lastName || ""}`.trim() ||
-                              "No name";
-                            const canInvite =
-                              contact.status === "no_account" ||
-                              contact.status === "needs_invite";
+          {/* Filter tabs */}
+          <div className="flex flex-wrap gap-1 border-b border-neutral-200">
+            {tabs.map((t) => {
+              const active = activeTab === t.value;
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setActiveTab(t.value)}
+                  className={[
+                    "flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition",
+                    active
+                      ? "border-neutral-900 text-neutral-900"
+                      : "border-transparent text-neutral-500 hover:text-neutral-900",
+                  ].join(" ")}
+                >
+                  {t.label}
+                  <span
+                    className={[
+                      "rounded-full px-1.5 py-0.5 text-xs tabular-nums",
+                      active ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500",
+                    ].join(" ")}
+                  >
+                    {t.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-                            return (
-                              <tr
-                                key={contact.id}
-                                className="border-t border-border/60"
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {statCards.map((st) => (
+              <div
+                key={st.label}
+                className="rounded-xl border border-neutral-200 bg-white p-4"
+              >
+                <p className="text-sm font-medium text-neutral-500">{st.label}</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{st.value}</p>
+                <p className="mt-0.5 text-xs text-neutral-400">{st.hint}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Table */}
+          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+            {loading ? (
+              <div className="px-4 py-16 text-center text-sm text-neutral-400">
+                Loading customers…
+              </div>
+            ) : errMsg ? (
+              <div className="px-4 py-12 text-center text-sm text-red-600">
+                {errMsg}{" "}
+                <button type="button" className="underline" onClick={() => refetchContacts()}>
+                  Retry
+                </button>
+              </div>
+            ) : pageCustomers.length === 0 ? (
+              <div className="px-4 py-16 text-center">
+                <Users className="mx-auto h-8 w-8 text-neutral-300" />
+                <p className="mt-3 text-sm font-medium text-neutral-700">No customers found</p>
+                <p className="text-sm text-neutral-400">
+                  {q ? "Try adjusting your search." : "Add a contact or sync from GoHighLevel."}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-neutral-200 text-left text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      <th className="px-4 py-3">Name</th>
+                      <th className="px-4 py-3">Email</th>
+                      <th className="px-4 py-3">Phone</th>
+                      <th className="px-4 py-3">Location ID</th>
+                      <th className="px-4 py-3 text-center">Estimates</th>
+                      <th className="px-4 py-3 text-center">Invoices</th>
+                      <th className="w-12 px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {pageCustomers.map((contact) => {
+                      const selected = selectedContact?.id === contact.id;
+                      const ghlUrl =
+                        locationId && contact.id
+                          ? `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${contact.id}`
+                          : null;
+                      const canInvite =
+                        contact.status === "no_account" || contact.status === "needs_invite";
+
+                      return (
+                        <tr
+                          key={contact.id}
+                          onClick={() => handleRowClick(contact.id)}
+                          className={[
+                            "cursor-pointer transition hover:bg-neutral-50",
+                            selected ? "bg-neutral-50" : "",
+                          ].join(" ")}
+                        >
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={[
+                                  "grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-semibold",
+                                  getAvatarColorClass(contact.id),
+                                ].join(" ")}
                               >
-                                <td className="px-3 py-2">{name}</td>
-                                <td className="px-3 py-2">
-                                  {contact.email || "—"}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {contact.phone || "—"}
-                                </td>
-                                <td className="px-3 py-2">
-                                  <Badge variant={badge.variant}>
-                                    {badge.label}
-                                  </Badge>
-                                </td>
-                                <td className="px-3 py-2">
-                                  <div className="flex items-center gap-2">
-                                    {canInvite ? (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                          handleInviteGhlContact(contact.id)
-                                        }
-                                        disabled={inviting[contact.id]}
-                                      >
-                                        {inviting[contact.id] ? (
-                                          <span className="flex items-center gap-2">
-                                            <Spinner size="sm" />
-                                            Sending…
-                                          </span>
-                                        ) : (
-                                          "Send Portal Invite"
-                                        )}
-                                      </Button>
-                                    ) : contact.matchedUser?.hasPortal ? (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        disabled
-                                      >
-                                        Has Portal Access
-                                      </Button>
-                                    ) : (
-                                      <span className="text-xs text-muted-foreground">
-                                        Linked
-                                      </span>
-                                    )}
-
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      title="Delete contact from GoHighLevel"
-                                      onClick={() => {
-                                        setGhlContactToDelete(contact);
-                                        setDeleteGhlContactDialogOpen(true);
-                                      }}
-                                      disabled={
-                                        deleteGhlContactMutation.isPending &&
-                                        ghlContactToDelete?.id === contact.id
-                                      }
-                                      className="text-error hover:text-error/80 hover:bg-error/10"
+                                {getContactInitials(contact)}
+                              </div>
+                              <div>
+                                <div className="font-medium text-neutral-900">
+                                  {contact.displayName}
+                                </div>
+                                {contact.hasPortal && (
+                                  <span className="text-xs text-emerald-600">Portal user</span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-neutral-700">{contact.email || "—"}</td>
+                          <td className="whitespace-nowrap px-4 py-3 text-neutral-700">
+                            {contact.phone || "—"}
+                          </td>
+                          <td className="max-w-[8rem] truncate px-4 py-3 font-mono text-xs text-neutral-500">
+                            {contact.locationId || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-center tabular-nums font-medium text-neutral-800">
+                            {contact.estimateCount ?? 0}
+                          </td>
+                          <td className="px-4 py-3 text-center tabular-nums font-medium text-neutral-800">
+                            {contact.invoiceCount ?? 0}
+                          </td>
+                          <td
+                            className="px-4 py-3 text-right"
+                            onClick={(ev) => ev.stopPropagation()}
+                          >
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="grid h-8 w-8 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-100"
+                                  aria-label="Actions"
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => handleRowClick(contact.id)}>
+                                  View details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <Link
+                                    href={`/admin/quotes?email=${encodeURIComponent(contact.email || "")}&firstName=${encodeURIComponent(contact.firstName || "")}&lastName=${encodeURIComponent(contact.lastName || "")}`}
+                                  >
+                                    New quote
+                                  </Link>
+                                </DropdownMenuItem>
+                                {canInvite && (
+                                  <DropdownMenuItem
+                                    disabled={inviting[contact.id]}
+                                    onSelect={() => handleInvite(contact.id)}
+                                  >
+                                    <Mail className="mr-2 h-4 w-4" />
+                                    Send invite
+                                  </DropdownMenuItem>
+                                )}
+                                {ghlUrl && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onSelect={() => window.open(ghlUrl, "_blank", "noopener")}
                                     >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {filteredGhlContacts.length === 0 && (
-                            <tr>
-                              <td
-                                className="px-3 py-6 text-center text-xs text-muted-foreground"
-                                colSpan={5}
-                              >
-                                {q
-                                  ? "No contacts match your search."
-                                  : "No GHL contacts found."}
-                              </td>
-                            </tr>
-                          )}
-                        </>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </TabsContent>
-
-              {/* WordPress Users Tab */}
-              <TabsContent value="wp" className="mt-4">
-                <div className="overflow-x-auto rounded-md border border-border/60">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
-                      <tr>
-                        <th className="px-3 py-2">
-                          <Checkbox
-                            checked={
-                              filteredWpUsers.length > 0 &&
-                              selectedUserIds.size === filteredWpUsers.length
-                            }
-                            onChange={(e) =>
-                              handleSelectAllUsers(e.target.checked)
-                            }
-                            aria-label="Select all"
-                          />
-                        </th>
-                        <th className="px-3 py-2">Name</th>
-                        <th className="px-3 py-2">Email</th>
-                        <th className="px-3 py-2">Portal</th>
-                        <th className="px-3 py-2">GHL Linked</th>
-                        <th className="px-3 py-2">Roles</th>
-                        <th className="px-3 py-2">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {wpUsersIsError ? (
-                        <tr>
-                          <td
-                            className="px-3 py-6 text-center text-xs text-error"
-                            colSpan={7}
-                          >
-                            Failed to load WordPress users. {wpErrMsg}{" "}
-                            <button
-                              type="button"
-                              className="underline"
-                              onClick={() => refetchUsers()}
-                            >
-                              Retry
-                            </button>
-                          </td>
-                        </tr>
-                      ) : loadingUsers ? (
-                        <tr>
-                          <td
-                            className="px-3 py-6 text-center text-xs text-muted-foreground"
-                            colSpan={7}
-                          >
-                            <span className="inline-flex items-center gap-2">
-                              <Spinner size="sm" />
-                              Loading users…
-                            </span>
-                          </td>
-                        </tr>
-                      ) : (
-                        <>
-                          {filteredWpUsers.map((user) => {
-                            const isSelected = selectedUserIds.has(
-                              String(user.id)
-                            );
-                            return (
-                              <tr
-                                key={user.id}
-                                className={`border-t border-border/60 ${isSelected ? "bg-primary/10" : ""}`}
-                              >
-                                <td className="px-3 py-2">
-                                  <Checkbox
-                                    checked={isSelected}
-                                    onChange={(e) =>
-                                      handleSelectUser(
-                                        user.id,
-                                        e.target.checked
-                                      )
-                                    }
-                                    aria-label={`Select user ${user.id}`}
-                                  />
-                                </td>
-                                <td className="px-3 py-2">{user.name}</td>
-                                <td className="px-3 py-2">{user.email}</td>
-                                <td className="px-3 py-2">
-                                  {user.hasPortal ? (
-                                    <Badge variant="default">Active</Badge>
-                                  ) : (
-                                    <Badge variant="outline">No Access</Badge>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {user.ghlContactId ? (
-                                    <Badge variant="secondary">Linked</Badge>
-                                  ) : (
-                                    <span className="text-xs text-muted-foreground">
-                                      Not linked
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {Array.isArray(user.roles) && user.roles.length > 0
-                                    ? user.roles.join(", ")
-                                    : "—"}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {canDestructive && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        setUserToDelete(user);
-                                        setDeleteUserDialogOpen(true);
-                                      }}
-                                      className="text-error hover:text-error/80 hover:bg-error/10"
+                                      <ExternalLink className="mr-2 h-4 w-4" />
+                                      Open in GHL
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {canDestructive && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-red-600 focus:text-red-600"
+                                      onSelect={() => handleDeleteClick(contact)}
                                     >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {filteredWpUsers.length === 0 && (
-                            <tr>
-                              <td
-                                className="px-3 py-6 text-center text-xs text-muted-foreground"
-                                colSpan={7}
-                              >
-                                {q
-                                  ? "No users match your search."
-                                  : "No WordPress users found."}
-                              </td>
-                            </tr>
-                          )}
-                        </>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-        {activeTab === "wp" && canDestructive && (
-          <FloatingActionBar
-            selectedCount={selectedUserIds.size}
-            onClearSelection={() => setSelectedUserIds(new Set())}
-            onDeleteSelected={() => setBulkDeleteDialogOpen(true)}
-            isLoading={bulkDeleteUsersMutation.isPending}
+            {!loading && !errMsg && pageCustomers.length > 0 && (
+              <div className="flex flex-col items-center justify-between gap-3 border-t border-neutral-200 px-4 py-3 text-sm sm:flex-row">
+                <p className="text-neutral-500">
+                  Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of{" "}
+                  {total} results
+                </p>
+                <div className="flex items-center gap-1">
+                  <PageBtn
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </PageBtn>
+                  {pageNumbers(page, totalPages).map((p, i) =>
+                    p === "…" ? (
+                      <span key={`ellipsis-${i}`} className="px-2 text-neutral-400">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPage(p)}
+                        className={[
+                          "h-8 min-w-8 rounded-lg px-2 text-sm font-medium",
+                          p === page
+                            ? "bg-neutral-900 text-white"
+                            : "text-neutral-600 hover:bg-neutral-100",
+                        ].join(" ")}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                  <PageBtn
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </PageBtn>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {selectedContact && (
+          <CustomerDetailPanel
+            contact={selectedContact}
+            locationId={locationId}
+            onClose={handleClosePanel}
+            onDelete={handleDeleteClick}
+            onInvite={handleInvite}
+            inviting={inviting}
+            canDestructive={canDestructive}
           />
         )}
 
-        <BulkDeleteDialog
-          open={bulkDeleteDialogOpen}
-          onOpenChange={setBulkDeleteDialogOpen}
-          onConfirm={handleBulkDeleteUsers}
-          itemCount={selectedUserIds.size}
-          isLoading={bulkDeleteUsersMutation.isPending}
-          showScopeSelection={true}
-          scope={bulkDeleteScope}
-          onScopeChange={setBulkDeleteScope}
-          itemType="User"
-          trashMode={false}
+        <NewContactModal
+          open={newContactOpen}
+          onClose={() => setNewContactOpen(false)}
+          onSubmit={handleCreateContact}
         />
 
         <DeleteDialog
-          open={deleteUserDialogOpen}
-          onOpenChange={setDeleteUserDialogOpen}
-          onConfirm={handleDeleteUserConfirm}
-          title="Delete User/Contact"
-          description={
-            userToDelete
-              ? `Are you sure you want to delete ${userToDelete.name || userToDelete.email}? This action cannot be undone.`
-              : ""
-          }
-          itemName={
-            userToDelete
-              ? (userToDelete.name || userToDelete.email)
-              : ""
-          }
-          isLoading={deleteUserMutation.isPending}
-          showScopeSelection={true}
-          scope={deleteScope}
-          onScopeChange={setDeleteScope}
-        />
-
-        <DeleteDialog
-          open={deleteGhlContactDialogOpen}
-          onOpenChange={setDeleteGhlContactDialogOpen}
-          onConfirm={handleDeleteGhlContactConfirm}
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onConfirm={handleDeleteConfirm}
           title="Delete GHL Contact"
           description={
-            ghlContactToDelete
-              ? `Are you sure you want to delete ${ghlContactToDelete.email || ghlContactToDelete.contactName || "this contact"} from GoHighLevel? This cannot be undone.`
+            contactToDelete
+              ? `Delete ${contactToDelete.displayName || contactToDelete.email} from GoHighLevel? This cannot be undone.`
               : ""
           }
           itemName={
-            ghlContactToDelete
-              ? (ghlContactToDelete.email ||
-                  ghlContactToDelete.contactName ||
-                  ghlContactToDelete.id)
+            contactToDelete
+              ? contactToDelete.displayName || contactToDelete.email || contactToDelete.id
               : ""
           }
           isLoading={deleteGhlContactMutation.isPending}
           showScopeSelection={false}
-        />
-
-        <DeleteByEmailDialog
-          open={deleteByEmailDialogOpen}
-          onOpenChange={setDeleteByEmailDialogOpen}
-          onConfirm={handleDeleteByEmail}
-          isLoading={deleteByEmailMutation.isPending}
         />
       </AdminLayout>
     </>
   );
 }
 
-export async function getServerSideProps(ctx) {
-  const { getWordPressUsers, getGHLContacts } = await import(
-    "../../../lib/admin/services/customers-data"
+function PageBtn({ onClick, disabled, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="grid h-8 w-8 place-items-center rounded-lg text-neutral-600 hover:bg-neutral-100 disabled:opacity-40 disabled:hover:bg-transparent"
+    >
+      {children}
+    </button>
   );
+}
 
+export async function getServerSideProps(ctx) {
   const authCheck = await requireAdmin(ctx, { notFound: true });
-  if (authCheck.notFound || authCheck.redirect) {
-    return authCheck;
-  }
-
-  try {
-    let wpUsers = [];
-    let ghlContacts = [];
-    const initialLoadErrors = {};
-
-    try {
-      wpUsers = await getWordPressUsers(ctx.req);
-    } catch (e) {
-      const msg =
-        e instanceof Error ? e.message : "Failed to fetch WordPress users";
-      initialLoadErrors.wpUsers = msg;
-    }
-
-    try {
-      ghlContacts = await getGHLContacts(ctx.req);
-    } catch (e) {
-      const msg =
-        e instanceof Error ? e.message : "Failed to fetch GHL contacts";
-      initialLoadErrors.ghlContacts = msg;
-    }
-
-    const hasInitialErrors = Object.keys(initialLoadErrors).length > 0;
-
-    return {
-      props: {
-        initialWpUsers: wpUsers,
-        initialGhlContacts: ghlContacts,
-        ...(hasInitialErrors
-          ? {
-              error:
-                "Some customer data failed to load (usually GHL connectivity). Please try Refresh.",
-              debugInfo:
-                process.env.NODE_ENV === "development"
-                  ? initialLoadErrors
-                  : null,
-            }
-          : {}),
-        ...(authCheck.props || {}),
-      },
-    };
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown error";
-
-    if (isAuthError(message)) {
-      return {
-        redirect: {
-          destination: "/login?from=/admin/customers",
-          permanent: false,
-        },
-      };
-    }
-
-    if (isPermissionError(message)) {
-      return {
-        props: {
-          initialWpUsers: [],
-          initialGhlContacts: [],
-          error:
-            "You don't have permission to view customers. Please contact an administrator.",
-          ...(authCheck.props || {}),
-        },
-      };
-    }
-
-    return {
-      props: {
-        initialWpUsers: [],
-        initialGhlContacts: [],
-        error: message,
-        debugInfo:
-          process.env.NODE_ENV === "development"
-            ? { error: message }
-            : null,
-        ...(authCheck.props || {}),
-      },
-    };
-  }
+  if (authCheck.notFound || authCheck.redirect) return authCheck;
+  return { props: { ...(authCheck.props || {}) } };
 }

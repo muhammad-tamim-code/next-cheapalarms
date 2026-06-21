@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { DEFAULT_CURRENCY } from "../../lib/admin/constants";
+import { getEstimateItemProductImage, proxyGhlImageUrl, rewriteGhlImagesInHtml, stripHtml } from "../../lib/admin/ghl-image";
 import { parseWpFetchError } from "../../lib/admin/utils/error-handler";
 import {
   getStatusDisplay,
@@ -65,6 +66,7 @@ const EstimateTableRow = memo(function EstimateTableRow({
   item,
   idx,
   photoCount,
+  productImage,
   isSelected,
   currency,
   isEditMode,
@@ -78,6 +80,13 @@ const EstimateTableRow = memo(function EstimateTableRow({
   onPhotoPolicyChange,
 }) {
   const itemName = item?.name || "Item";
+  const hasImgInDesc = item?.description && /<img\s/i.test(item.description);
+  const descriptionText = item?.description
+    ? (productImage && hasImgInDesc ? stripHtml(item.description) : null)
+    : null;
+  const descriptionHtml = item?.description && !(productImage && hasImgInDesc)
+    ? rewriteGhlImagesInHtml(item.description)
+    : null;
   
   const rowClassName = useMemo(() => {
     if (isEditMode) {
@@ -116,16 +125,30 @@ const EstimateTableRow = memo(function EstimateTableRow({
     >
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex-1">
+          {productImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={proxyGhlImageUrl(productImage)}
+              alt=""
+              className="h-10 w-10 shrink-0 rounded border border-border object-cover"
+            />
+          ) : null}
+          <div className="flex-1 min-w-0">
             <div className="font-medium text-foreground flex items-center gap-2">
               {itemName}
               {item?.isCustom && (
                 <span className="text-xs px-1.5 py-0.5 bg-success-bg text-success rounded font-semibold">NEW</span>
               )}
             </div>
-            {item?.description && (
-              <div className="text-xs text-muted-foreground">{item?.description}</div>
-            )}
+            {descriptionText ? (
+              <p className="text-xs text-muted-foreground">{descriptionText}</p>
+            ) : null}
+            {descriptionHtml ? (
+              <div
+                className="text-xs text-muted-foreground [&_img]:mt-1 [&_img]:max-h-20 [&_img]:rounded"
+                dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+              />
+            ) : null}
           </div>
           {!isEditMode && photoCount > 0 && (
             <div className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary shadow-sm border border-primary/30">
@@ -754,103 +777,66 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="rounded-xl border border-border/60 bg-card p-8 shadow-md">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">{estimate?.title || "ESTIMATE"}</h1>
-            <p className="mt-2 text-sm font-medium text-muted-foreground">
-              Estimate #{estimate?.estimateNumber || estimateId}
-            </p>
+      {/* Header — horizontal strip (UI only; all data bindings unchanged) */}
+      <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-6">
+          {/* Estimate number */}
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Estimate number</p>
+            <p className="mt-1 truncate text-xl font-bold tracking-tight text-neutral-900">{estimate?.estimateNumber || estimateId}</p>
+            <p className="truncate text-xs text-neutral-400">ID: {estimateId}</p>
           </div>
-          <div className="flex items-center gap-3">
-            {portalMeta.quote?.revisionNumber != null && portalMeta.quote.revisionNumber > 0 && (
-              <Badge variant="outline" className="text-xs font-semibold shadow-sm px-3 py-1">
-                Revision {portalMeta.quote.revisionNumber}
-              </Badge>
-            )}
-            {portalMeta.workflow?.status === 'ready_to_accept' && portalMeta.quote?.acceptance_enabled && (
-              <Badge variant="info" className="text-xs font-semibold shadow-sm px-3 py-1">
-                Awaiting Acceptance
-              </Badge>
-            )}
-            <Badge
-              variant={statusDisplay.variant}
-              className="text-xs font-semibold shadow-sm px-3 py-1 flex items-center gap-1.5"
-            >
-              {statusIcon}
-              {statusDisplay.label}
-            </Badge>
-          </div>
-        </div>
 
-        <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-          <div className="p-4 rounded-lg bg-muted/20 border border-border/40">
-            <div className="flex items-center gap-2 mb-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Customer</p>
+          {/* Status */}
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Status</p>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <Badge variant={statusDisplay.variant} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold">
+                {statusIcon}
+                {statusDisplay.label}
+              </Badge>
             </div>
-            <p className="mt-2 font-semibold text-foreground flex items-center gap-2">
-              <User className="h-4 w-4 text-primary" />
-              {contact.name || "N/A"}
-            </p>
-            {contact.email && (
-              <p className="mt-1 text-sm text-muted-foreground flex items-center gap-2">
-                <Mail className="h-3.5 w-3.5" />
-                {contact.email}
-              </p>
+            {portalMeta.workflow?.status === 'ready_to_accept' && portalMeta.quote?.acceptance_enabled && (
+              <p className="mt-1 text-xs text-neutral-500">Awaiting acceptance</p>
             )}
-            {contact.phone && (
-              <p className="mt-1 text-sm text-muted-foreground flex items-center gap-2">
-                <Phone className="h-3.5 w-3.5" />
-                {contact.phone}
-              </p>
-            )}
-          </div>
-          <div className="p-4 rounded-lg bg-muted/20 border border-border/40">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-              <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Status</p>
-            </div>
-            <p className="mt-2 font-semibold text-foreground flex items-center gap-2">
-              {statusIconLarge}
-              {statusDisplay.label}
-            </p>
             {portalMeta.quote?.revisionNumber != null && portalMeta.quote.revisionNumber > 0 && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Revision {portalMeta.quote.revisionNumber}
-              </p>
+              <p className="text-xs text-neutral-400">Revision {portalMeta.quote.revisionNumber}</p>
             )}
           </div>
-          <div className="p-4 rounded-lg bg-muted/20 border border-border/40">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Estimate Total</p>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-primary" />
+
+          {/* Title */}
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Title</p>
+            <p className="mt-1 font-semibold text-neutral-900">{estimate?.title || "ESTIMATE"}</p>
+          </div>
+
+          {/* Customer */}
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Customer</p>
+            <p className="mt-1 truncate font-semibold text-neutral-900">{contact.name || "N/A"}</p>
+            {contact.email && <p className="truncate text-xs text-neutral-500">{contact.email}</p>}
+            {contact.phone && <p className="truncate text-xs text-neutral-500">{contact.phone}</p>}
+          </div>
+
+          {/* Total */}
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Total ({currency})</p>
+            <p className="mt-1 text-xl font-bold tracking-tight text-neutral-900">
               {formatCurrencyAmount(isEditMode ? editTotal : originalTotal, currency)}
             </p>
             {portalMeta.photos?.submission_status === 'submitted' && (
-              <p className="mt-2 text-xs font-medium text-muted-foreground">
+              <p className="text-xs text-neutral-400">
                 {portalMeta.photos.total || 0} photo{(portalMeta.photos.total || 0) !== 1 ? 's' : ''} submitted
               </p>
             )}
           </div>
-          <div className="p-4 rounded-lg bg-muted/20 border border-border/40">
-            <div className="flex items-center gap-2 mb-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Created</p>
-            </div>
-            <p className="mt-2 font-semibold text-foreground flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-primary" />
-              {createdAtFormatted}
-            </p>
+
+          {/* Created / Accepted */}
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Created</p>
+            <p className="mt-1 text-sm font-medium text-neutral-900">{createdAtFormatted}</p>
             {acceptedAtFormatted && (
-              <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1.5">
-                <CheckCircle2 className="h-3 w-3 text-success" />
-                Accepted: {acceptedAtFormatted}
-              </p>
+              <p className="text-xs text-emerald-600">Accepted: {acceptedAtFormatted}</p>
             )}
           </div>
         </div>
@@ -994,12 +980,14 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
                       
                       const itemPolicy = resolvePhotoPolicy(item);
                       const policyPending = pendingPhotoPolicyName === itemName;
+                      const productImage = getEstimateItemProductImage(item, itemsMeta);
                       return (
                         <EstimateTableRow
                           key={item?.id || idx}
                           item={item}
                           idx={idx}
                           photoCount={photoCount}
+                          productImage={productImage}
                           isSelected={isSelected}
                           currency={currency}
                           isEditMode={isEditMode}

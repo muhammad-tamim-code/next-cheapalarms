@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 /**
  * React Query hook for fetching WordPress users
@@ -31,36 +31,62 @@ export function useWordPressUsers({ enabled = true, initialData } = {}) {
 }
 
 /**
- * React Query hook for fetching GHL contacts
- * Automatically handles caching, deduplication, and refetching
+ * Paginated GHL contacts list with total count from WordPress proxy.
  */
-export function useGHLContacts({ limit = 50, enabled = true, initialData } = {}) {
+export function useGHLContactsList({
+  search = '',
+  limit = 500,
+  offset = 0,
+  enabled = true,
+  initialData,
+} = {}) {
   return useQuery({
-    queryKey: ['ghl-contacts', limit],
+    queryKey: ['ghl-contacts', search, limit, offset],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (limit) params.set('limit', limit.toString());
-      const queryString = params.toString() ? `?${params.toString()}` : '';
+      if (limit) params.set('limit', String(limit));
+      if (offset) params.set('offset', String(offset));
+      if (search) params.set('search', search);
 
-      const res = await fetch(`/api/ghl/contacts/list${queryString}`, {
+      const res = await fetch(`/api/ghl/contacts/list?${params.toString()}`, {
         credentials: 'include',
       });
 
       if (!res.ok) {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({}));
         throw new Error(error.err || error.error || 'Failed to fetch GHL contacts');
       }
 
       const data = await res.json();
-      return data.contacts ?? data.contact ?? (Array.isArray(data) ? data : []);
+      const contacts = data.contacts ?? data.contact ?? (Array.isArray(data) ? data : []);
+
+      return {
+        contacts,
+        total: data.total ?? contacts.length,
+        limit: data.limit ?? limit,
+        offset: data.offset ?? offset,
+      };
     },
     enabled,
-    initialData,
-    staleTime: 2 * 60 * 1000, // 2 minutes — allows refetch after mutations
+    initialData: initialData
+      ? { contacts: initialData, total: initialData.length, limit, offset }
+      : undefined,
+    staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
   });
+}
+
+/**
+ * React Query hook for fetching GHL contacts (legacy — returns array only).
+ */
+export function useGHLContacts({ limit = 50, enabled = true, initialData } = {}) {
+  const list = useGHLContactsList({ limit, enabled, initialData });
+  return {
+    ...list,
+    data: list.data?.contacts ?? initialData ?? [],
+  };
 }
 

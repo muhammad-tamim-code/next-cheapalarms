@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiFetch } from '../../../api/apiFetch';
-import { DEFAULT_CURRENCY } from '../../../admin/constants';
+import { GHL_CURRENCY } from '../../../admin/constants';
 import { cleanDiscountForGhl, formatGhlLineItems } from '../../../admin/formatGhlEstimatePayload';
 import { parseWpFetchError } from '../../../admin/utils/error-handler';
 
@@ -10,24 +10,28 @@ export function useCreateCustomQuote() {
 
   return useMutation({
     mutationFn: async ({
+      title,
       contactDetails,
       items,
       discount,
       sendNow = false,
       locationId,
     }) => {
-      const currency = DEFAULT_CURRENCY;
       const payload = {
+        title: title?.trim() || undefined,
         contactDetails: {
           email: contactDetails.email?.trim(),
           firstName: contactDetails.firstName?.trim() || '',
           lastName: contactDetails.lastName?.trim() || '',
           name: [contactDetails.firstName, contactDetails.lastName].filter(Boolean).join(' ').trim(),
           phone: contactDetails.phone?.trim() || '',
+          ...(contactDetails.id ? { id: contactDetails.id } : {}),
         },
-        items: formatGhlLineItems(items, currency),
+        items: formatGhlLineItems(items, GHL_CURRENCY),
         itemHints: (items || []).map((item) => ({
           name: item?.name || '',
+          image: item?.image || '',
+          ghlProductId: item?.ghlProductId || '',
           photoRequired: item?.photoRequired,
           isCustom: item?.isCustom,
         })).filter((hint) => hint.name),

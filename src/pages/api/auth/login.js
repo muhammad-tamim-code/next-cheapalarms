@@ -9,13 +9,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, err: "Method not allowed" });
   }
 
-  const { username, password } = req.body ?? {};
+  const { username, password, remember } = req.body ?? {};
   if (!username || !password) {
     return res.status(400).json({
       ok: false,
       err: "Username and password are required.",
     });
   }
+
+  const rememberMe = remember === true || remember === "true" || remember === 1 || remember === "1";
 
   try {
     // Add timeout to prevent hanging (using API_TIMEOUT constant)
@@ -24,7 +26,7 @@ export default async function handler(req, res) {
     });
 
     const result = await Promise.race([
-      authenticate({ username, password }),
+      authenticate({ username, password, remember: rememberMe }),
       timeoutPromise,
     ]);
 

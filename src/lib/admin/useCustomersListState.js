@@ -1,203 +1,135 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "../../components/ui/use-toast";
-import { matchContactsToUsers, getStatusBadge } from "./services/customers-data";
-import { useWordPressUsers, useGHLContacts } from "../react-query/hooks";
+import { useWordPressUsers, useGHLContactsList } from "../react-query/hooks/use-customers";
+import { useAdminEstimates, useAdminInvoices } from "../react-query/hooks/admin";
+import { useDeleteGhlContact } from "../react-query/hooks/admin";
 import {
-  useDeleteUser,
-  useDeleteGhlContact,
-  useBulkDeleteUsers,
-  useDeleteByEmail,
-} from "../react-query/hooks/admin";
+  enrichContacts,
+  buildContactActivityIndex,
+  filterCustomersByTab,
+  computeCustomerStats,
+  tabCounts,
+  exportCustomersCsv,
+} from "./customers-utils";
+
+const PAGE_SIZE = 20;
+const FETCH_LIMIT = 500;
 
 /**
- * Filter/table state and data for the admin customers list page.
- * Accepts initial data from getServerSideProps to avoid hydration mismatch.
- * @param {{ initialWpUsers?: Array, initialGhlContacts?: Array }} initialData
+ * State for the admin Customers tab — GHL contacts enriched with WP accounts + estimate/invoice activity.
  */
-export function useCustomersListState(initialData = {}) {
-  const { initialWpUsers = [], initialGhlContacts = [] } = initialData;
+export function useCustomersListState() {
   const queryClient = useQueryClient();
+  const locationId = process.env.NEXT_PUBLIC_GHL_LOCATION_ID || "";
 
-  const [activeTab, setActiveTab] = useState("wp");
   const [q, setQ] = useState("");
+  const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [page, setPage] = useState(1);
+  const [selectedContactId, setSelectedContactId] = useState(null);
   const [inviting, setInviting] = useState({});
-  const [refreshing, setRefreshing] = useState(false);
-  const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState(null);
-  const [deleteScope, setDeleteScope] = useState("local");
-  const [deleteGhlContactDialogOpen, setDeleteGhlContactDialogOpen] =
-    useState(false);
-  const [ghlContactToDelete, setGhlContactToDelete] = useState(null);
-  const [locationId, setLocationId] = useState("");
-  const [selectedUserIds, setSelectedUserIds] = useState(new Set());
-  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  const [bulkDeleteScope, setBulkDeleteScope] = useState("local");
-  const [deleteByEmailDialogOpen, setDeleteByEmailDialogOpen] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [contactToDelete, setContactToDelete] = useState(null);
+  const [newContactOpen, setNewContactOpen] = useState(false);
 
-  const deleteUserMutation = useDeleteUser();
   const deleteGhlContactMutation = useDeleteGhlContact();
-  const bulkDeleteUsersMutation = useBulkDeleteUsers();
-  const deleteByEmailMutation = useDeleteByEmail();
+
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
 
   useEffect(() => {
-    setIsHydrated(true);
-  }, []);
+    setPage(1);
+  }, [search, activeTab]);
 
   const {
-    data: wpUsers = [],
-    isLoading: loadingUsers,
-    isError: wpUsersIsError,
-    error: wpUsersError,
-    refetch: refetchUsers,
-  } = useWordPressUsers({
-    enabled: true,
-    initialData: initialWpUsers || [],
-    staleTime: 1000 * 60 * 5,
-    refetchOnMount: false,
-  });
-
-  const {
-    data: ghlContacts = [],
+    data: contactsData,
     isLoading: loadingContacts,
-    isError: ghlContactsIsError,
-    error: ghlContactsError,
+    isError: contactsIsError,
+    error: contactsError,
     refetch: refetchContacts,
-  } = useGHLContacts({
-    limit: 50,
+  } = useGHLContactsList({ search, limit: FETCH_LIMIT, enabled: true });
+
+  const { data: wpUsers = [], isLoading: loadingUsers } = useWordPressUsers({ enabled: true });
+
+  const { data: estimatesData, isLoading: loadingEstimates } = useAdminEstimates({
+    page: 1,
+    pageSize: FETCH_LIMIT,
     enabled: true,
-    initialData: initialGhlContacts || [],
-    staleTime: 1000 * 60 * 5,
-    refetchOnMount: false,
   });
 
-  const loading = loadingUsers || loadingContacts || refreshing;
-  const wpErrMsg = wpUsersIsError
-    ? wpUsersError?.message || "Failed to load WordPress users."
+  const { data: invoicesData, isLoading: loadingInvoices } = useAdminInvoices({
+    page: 1,
+    pageSize: FETCH_LIMIT,
+    enabled: true,
+  });
+
+  const loading = loadingContacts || loadingUsers || loadingEstimates || loadingInvoices;
+  const errMsg = contactsIsError
+    ? contactsError?.message || "Failed to load contacts."
     : null;
-  const ghlErrMsg = ghlContactsIsError
-    ? ghlContactsError?.message || "Failed to load GHL contacts."
-    : null;
 
-  const matchedContacts = useMemo(() => {
-    const contactsToUse = !isHydrated ? (initialGhlContacts || []) : ghlContacts;
-    const usersToUse = !isHydrated ? (initialWpUsers || []) : wpUsers;
-    return matchContactsToUsers(contactsToUse, usersToUse);
-  }, [ghlContacts, wpUsers, initialGhlContacts, initialWpUsers, isHydrated]);
-
-  const filteredWpUsers = useMemo(() => {
-    const usersToUse = !isHydrated ? (initialWpUsers || []) : wpUsers;
-    if (!q?.trim()) return usersToUse;
-    const s = q.toLowerCase();
-    return usersToUse.filter(
-      (user) =>
-        user.name?.toLowerCase().includes(s) ||
-        user.email?.toLowerCase().includes(s) ||
-        user.firstName?.toLowerCase().includes(s) ||
-        user.lastName?.toLowerCase().includes(s)
+  const enrichedCustomers = useMemo(() => {
+    const contacts = contactsData?.contacts ?? [];
+    const activity = buildContactActivityIndex(
+      estimatesData?.items ?? [],
+      invoicesData?.items ?? []
     );
-  }, [wpUsers, q, initialWpUsers, isHydrated]);
+    return enrichContacts(contacts, wpUsers, activity, locationId);
+  }, [contactsData, wpUsers, estimatesData, invoicesData, locationId]);
 
-  const filteredGhlContacts = useMemo(() => {
-    if (!q?.trim()) return matchedContacts;
-    const s = q.toLowerCase();
-    return matchedContacts.filter(
-      (contact) =>
-        (contact.firstName || "").toLowerCase().includes(s) ||
-        (contact.lastName || "").toLowerCase().includes(s) ||
-        (contact.email || "").toLowerCase().includes(s) ||
-        (contact.phone || "").includes(s)
-    );
-  }, [matchedContacts, q]);
-
-  useEffect(() => {
-    setSelectedUserIds(new Set());
-  }, [activeTab, q]);
-
-  const handleSelectAllUsers = useCallback(
-    (checked) => {
-      if (checked) {
-        setSelectedUserIds(
-          new Set(filteredWpUsers.map((user) => String(user.id)))
-        );
-      } else {
-        setSelectedUserIds(new Set());
-      }
-    },
-    [filteredWpUsers]
+  const filteredCustomers = useMemo(
+    () => filterCustomersByTab(enrichedCustomers, activeTab),
+    [enrichedCustomers, activeTab]
   );
 
-  const handleSelectUser = useCallback((userId, checked) => {
-    setSelectedUserIds((prev) => {
-      const newSelected = new Set(prev);
-      if (checked) {
-        newSelected.add(String(userId));
-      } else {
-        newSelected.delete(String(userId));
-      }
-      return newSelected;
-    });
-  }, []);
+  const stats = useMemo(() => computeCustomerStats(enrichedCustomers), [enrichedCustomers]);
+  const counts = useMemo(() => tabCounts(enrichedCustomers), [enrichedCustomers]);
 
-  const handleBulkDeleteUsers = useCallback(async () => {
-    const userIds = Array.from(selectedUserIds).map(Number);
-    if (userIds.length === 0) return;
+  const total = filteredCustomers.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageCustomers = useMemo(() => {
+    const offset = (page - 1) * PAGE_SIZE;
+    return filteredCustomers.slice(offset, offset + PAGE_SIZE);
+  }, [filteredCustomers, page]);
 
-    try {
-      await bulkDeleteUsersMutation.mutateAsync({
-        userIds,
-        locationId: locationId || undefined,
-        scope: bulkDeleteScope,
-      });
-      setSelectedUserIds(new Set());
-      setBulkDeleteDialogOpen(false);
-    } catch (err) {
-      // Error handled by mutation
-    }
-  }, [
-    selectedUserIds,
-    bulkDeleteUsersMutation,
-    locationId,
-    bulkDeleteScope,
-  ]);
+  const selectedContact = useMemo(
+    () => enrichedCustomers.find((c) => c.id === selectedContactId) ?? null,
+    [enrichedCustomers, selectedContactId]
+  );
+
+  const handleSearchChange = useCallback((value) => setQ(value), []);
 
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await Promise.all([refetchUsers(), refetchContacts()]);
-      toast({
-        title: "Refreshed",
-        description: "Customer data has been refreshed.",
-      });
-    } catch (err) {
-      toast({
-        title: "Refresh failed",
-        description: err?.message || "Failed to refresh data",
-        variant: "destructive",
-      });
-    } finally {
-      setRefreshing(false);
+    await Promise.all([
+      refetchContacts(),
+      queryClient.invalidateQueries({ queryKey: ["wp-users"] }),
+      queryClient.invalidateQueries({ queryKey: ["admin-estimates"] }),
+      queryClient.invalidateQueries({ queryKey: ["admin-invoices"] }),
+    ]);
+    toast({ title: "Refreshed", description: "Customer data updated." });
+  }, [refetchContacts, queryClient]);
+
+  const handleRowClick = useCallback((contactId) => {
+    setSelectedContactId(contactId);
+  }, []);
+
+  const handleClosePanel = useCallback(() => {
+    setSelectedContactId(null);
+  }, []);
+
+  const handleExport = useCallback(() => {
+    if (!filteredCustomers.length) {
+      toast({ title: "Nothing to export", variant: "destructive" });
+      return;
     }
-  }, [refetchUsers, refetchContacts]);
+    exportCustomersCsv(filteredCustomers);
+  }, [filteredCustomers]);
 
-  const handleDeleteByEmail = useCallback(
-    async (email) => {
-      try {
-        await deleteByEmailMutation.mutateAsync({
-          email,
-          locationId: locationId || undefined,
-        });
-        setDeleteByEmailDialogOpen(false);
-        await handleRefresh();
-      } catch (err) {
-        // Error handled by mutation
-      }
-    },
-    [deleteByEmailMutation, locationId, handleRefresh]
-  );
-
-  const handleInviteGhlContact = useCallback(
+  const handleInvite = useCallback(
     async (ghlContactId) => {
       setInviting((prev) => ({ ...prev, [ghlContactId]: true }));
       try {
@@ -207,19 +139,12 @@ export function useCustomersListState(initialData = {}) {
           body: JSON.stringify({ ghlContactId }),
         });
         const data = await response.json();
-
         if (!response.ok || !data.ok) {
           throw new Error(data.error || "Failed to send invite");
         }
-
-        toast({
-          title: "Invite sent",
-          description: "Portal invite has been sent to the contact.",
-        });
-
+        toast({ title: "Invite sent", description: "Portal invite email sent." });
         queryClient.invalidateQueries({ queryKey: ["wp-users"] });
         queryClient.invalidateQueries({ queryKey: ["ghl-contacts"] });
-        await handleRefresh();
       } catch (err) {
         toast({
           title: "Invite failed",
@@ -230,96 +155,93 @@ export function useCustomersListState(initialData = {}) {
         setInviting((prev) => ({ ...prev, [ghlContactId]: false }));
       }
     },
-    [queryClient, handleRefresh]
+    [queryClient]
   );
 
-  const handleDeleteUserConfirm = useCallback(async () => {
-    if (!userToDelete) return;
-    try {
-      await deleteUserMutation.mutateAsync({
-        userId: userToDelete.id,
-        locationId: locationId || undefined,
-        scope: deleteScope,
-      });
-      setDeleteUserDialogOpen(false);
-      setUserToDelete(null);
-    } catch (err) {
-      // Error handled in mutation
-    }
-  }, [
-    userToDelete,
-    locationId,
-    deleteScope,
-    deleteUserMutation,
-  ]);
+  const handleDeleteClick = useCallback((contact) => {
+    setContactToDelete(contact);
+    setDeleteDialogOpen(true);
+  }, []);
 
-  const handleDeleteGhlContactConfirm = useCallback(async () => {
-    if (!ghlContactToDelete) return;
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!contactToDelete) return;
     try {
       await deleteGhlContactMutation.mutateAsync({
-        contactId: ghlContactToDelete.id,
-        locationId: ghlContactToDelete.locationId,
+        contactId: contactToDelete.id,
+        locationId: contactToDelete.locationId || locationId,
       });
-      setDeleteGhlContactDialogOpen(false);
-      setGhlContactToDelete(null);
-      await handleRefresh();
-    } catch (err) {
-      // Error handled in mutation
+      setDeleteDialogOpen(false);
+      setContactToDelete(null);
+      if (selectedContactId === contactToDelete.id) {
+        setSelectedContactId(null);
+      }
+      await refetchContacts();
+    } catch {
+      // mutation handles toast
     }
   }, [
-    ghlContactToDelete,
+    contactToDelete,
     deleteGhlContactMutation,
-    handleRefresh,
+    locationId,
+    refetchContacts,
+    selectedContactId,
   ]);
 
+  const handleCreateContact = useCallback(
+    async (payload) => {
+      const res = await fetch("/api/ghl/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || data.err || "Failed to create contact");
+      }
+      toast({ title: "Contact created", description: "Added to GoHighLevel." });
+      setNewContactOpen(false);
+      await refetchContacts();
+    },
+    [refetchContacts]
+  );
+
   return {
-    activeTab,
-    setActiveTab,
     q,
     setQ,
-    inviting,
+    handleSearchChange,
+    search,
+    activeTab,
+    setActiveTab,
+    page,
+    setPage,
+    pageSize: PAGE_SIZE,
+    total,
+    totalPages,
+    pageCustomers,
+    enrichedCustomers,
+    filteredCustomers,
+    stats,
+    counts,
     loading,
-    refreshing,
-    wpErrMsg,
-    ghlErrMsg,
-    filteredWpUsers,
-    filteredGhlContacts,
-    selectedUserIds,
-    setSelectedUserIds,
-    handleSelectAllUsers,
-    handleSelectUser,
-    handleBulkDeleteUsers,
-    handleRefresh,
-    handleDeleteByEmail,
-    handleInviteGhlContact,
-    getStatusBadge,
-    deleteUserDialogOpen,
-    setDeleteUserDialogOpen,
-    userToDelete,
-    setUserToDelete,
-    deleteScope,
-    setDeleteScope,
-    handleDeleteUserConfirm,
-    deleteUserMutation,
-    deleteGhlContactDialogOpen,
-    setDeleteGhlContactDialogOpen,
-    ghlContactToDelete,
-    setGhlContactToDelete,
-    handleDeleteGhlContactConfirm,
-    deleteGhlContactMutation,
-    bulkDeleteDialogOpen,
-    setBulkDeleteDialogOpen,
-    bulkDeleteScope,
-    setBulkDeleteScope,
-    bulkDeleteUsersMutation,
-    deleteByEmailDialogOpen,
-    setDeleteByEmailDialogOpen,
-    deleteByEmailMutation,
-    refetchUsers,
+    errMsg,
     refetchContacts,
-    loadingUsers,
-    loadingContacts,
-    wpUsersIsError,
-    ghlContactsIsError,
+    handleRefresh,
+    selectedContact,
+    selectedContactId,
+    handleRowClick,
+    handleClosePanel,
+    handleExport,
+    inviting,
+    handleInvite,
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    contactToDelete,
+    handleDeleteClick,
+    handleDeleteConfirm,
+    deleteGhlContactMutation,
+    newContactOpen,
+    setNewContactOpen,
+    handleCreateContact,
+    locationId,
   };
 }

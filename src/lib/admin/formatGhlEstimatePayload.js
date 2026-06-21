@@ -1,4 +1,13 @@
-import { DEFAULT_CURRENCY } from './constants';
+import { DEFAULT_CURRENCY, GHL_CURRENCY } from './constants';
+
+/** Map display currency (AU$) to GHL ISO code (AUD). */
+export function toGhlCurrency(currency) {
+  const c = (currency || '').trim().toUpperCase();
+  if (!c || c === 'AU$' || c === '$') return GHL_CURRENCY;
+  if (c === 'AUD') return GHL_CURRENCY;
+  if (/^[A-Z]{3}$/.test(c)) return c;
+  return GHL_CURRENCY;
+}
 
 /** GHL only accepts discount.type and discount.value (negative value = surcharge). */
 export function cleanDiscountForGhl(discount) {
@@ -11,15 +20,47 @@ export function cleanDiscountForGhl(discount) {
   };
 }
 
-export function formatGhlLineItems(items, currency = DEFAULT_CURRENCY) {
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** GHL estimate line descriptions support HTML — embed catalog product images here. */
+export function buildGhlItemDescription(item) {
+  const text = (item?.description || '').trim();
+  const imageUrl = (item?.image || '').trim();
+
+  if (text && /<img\s/i.test(text)) {
+    return text;
+  }
+
+  const parts = [];
+  if (text) {
+    parts.push(`<p>${escapeHtml(text)}</p>`);
+  }
+  if (imageUrl) {
+    const safeSrc = imageUrl.replace(/"/g, '&quot;');
+    parts.push(
+      `<img src="${safeSrc}" width="170" style="border-radius:8px;margin:6px 0;display:block;" alt="">`
+    );
+  }
+  return parts.join('\n');
+}
+
+export function formatGhlLineItems(items, currency = GHL_CURRENCY) {
+  const ghlCurrency = toGhlCurrency(currency);
   return (items || [])
-    .filter((item) => item != null)
+    .filter((item) => item != null && (item.name || '').trim())
     .map((item) => ({
       name: item.name || '',
-      description: item.description || '',
-      currency: item.currency || currency,
-      amount: parseFloat(item.amount) || 0,
-      qty: parseInt(item.qty || item.quantity || 1, 10),
+      description: buildGhlItemDescription(item),
+      currency: toGhlCurrency(item.currency || ghlCurrency),
+      amount: Math.max(0, parseFloat(item.amount) || 0),
+      qty: Math.max(1, parseInt(item.qty || item.quantity || 1, 10)),
+      type: item.type || 'one_time',
     }));
 }
 

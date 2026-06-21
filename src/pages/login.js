@@ -16,11 +16,11 @@ export default function LoginPage() {
       </Head>
       <main className="light relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-primary/30 via-background to-secondary/25 p-4 sm:p-8">
         <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,83,117,0.18),transparent_50%)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(0,0,0,0.06),transparent_50%)]"
           aria-hidden="true"
         />
         <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(47,182,201,0.15),transparent_45%)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(0,0,0,0.04),transparent_45%)]"
           aria-hidden="true"
         />
 
