@@ -1,4 +1,4 @@
-import { createWpProxyHandler } from '../../../lib/api/wp-proxy';
+import { createWpProxyHandler } from '../../../../lib/api/wp-proxy';
 
 /**
  * Proxy: POST /api/products/ghl/sync
