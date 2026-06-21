@@ -1,70 +1,38 @@
-# Vercel Deployment Guide - Next.js Portal
+# Vercel Deployment — Safeguard staging
 
-Portal host: **`portal.cheapalarms.com.au`**  
-WordPress API: **`https://cheapalarms.com.au/wp-json`**
-
----
-
-## Environment variables (Vercel)
-
-| Name | Value |
-|------|-------|
-| `NEXT_PUBLIC_WP_URL` | `https://cheapalarms.com.au/wp-json` |
-| `NEXT_PUBLIC_GHL_LOCATION_ID` | Your GHL location ID |
-| `NODE_ENV` | `production` |
-
-Set in: **Project → Settings → Environment Variables** (Production). Redeploy after changes.
-
-Local reference: `next-app/.env.production`
+| | |
+|--|--|
+| **Portal** | `https://safeguard-portal.vercel.app` |
+| **WordPress API** | `https://skyblue-dolphin-986433.hostingersite.com/wp-json` |
+| **Project ID** | `prj_2YThEFwkPT5JnWnu3AKI4M0xam4c` |
 
 ---
 
-## Custom domain
+## Environment variables (Vercel → Production)
 
-1. Vercel → Project → Settings → Domains  
-2. Add: `portal.cheapalarms.com.au`  
-3. DNS: CNAME `portal` → `cname.vercel-dns.com`  
-4. Wait for SSL (5–60 min)
+See **`vercel.safeguard-staging.env.example`** in this folder (copy/paste into Vercel dashboard).
 
----
-
-## WordPress plugin CORS (on `cheapalarms.com.au`)
-
-Edit `config/instance.php` or `config/secrets.php` on the server:
-
-```php
-'upload_allowed_origins' => [
-    'https://cheapalarms.com.au',
-    'https://portal.cheapalarms.com.au',
-],
-'api_allowed_origins' => [
-    'https://cheapalarms.com.au',
-    'https://portal.cheapalarms.com.au',
-],
-'frontend_url' => 'https://portal.cheapalarms.com.au',
-```
-
-See `PRODUCTION-CONFIG-CHECKLIST.md` in the plugin folder.
+Redeploy after any env change.
 
 ---
 
-## Testing
+## WordPress plugin files to upload (Hostinger)
+
+| File | Purpose |
+|------|---------|
+| `config/secrets.php` | Credentials + JWT + upload secret + branding |
+| `config/instance.php` | `frontend_url` + CORS (from sync script) |
+
+---
+
+## Verification
 
 | Test | URL |
 |------|-----|
-| WP health | `https://cheapalarms.com.au/wp-json/ca/v1/health` |
-| Portal login | `https://portal.cheapalarms.com.au/login` |
-| Admin | `https://portal.cheapalarms.com.au/admin` |
-
-In browser DevTools → Network, API calls from the portal should proxy to `cheapalarms.com.au/wp-json/` (server-side). No CORS errors on login or photo upload.
+| WP health | `https://skyblue-dolphin-986433.hostingersite.com/wp-json/ca/v1/health` |
+| Portal login | `https://safeguard-portal.vercel.app/login` |
+| Admin | `https://safeguard-portal.vercel.app/admin` |
 
 ---
 
-## Checklist
-
-- [ ] WordPress live on `cheapalarms.com.au` with plugin + secrets
-- [ ] `NEXT_PUBLIC_WP_URL` set on Vercel
-- [ ] `portal.cheapalarms.com.au` DNS + SSL
-- [ ] Plugin `frontend_url` + CORS updated
-- [ ] Stripe / Xero redirect URLs updated
-- [ ] Login + portal smoke test passed
+Full checklist: `wordpress/wp-content/plugins/cheapalarms-plugin/docs/SAFEGUARD-STAGING-DEPLOY.md`
