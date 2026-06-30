@@ -105,22 +105,35 @@ export function PortalSidebar({ activeNav, onNavChange, estimateId, onBackToList
 
           {/* Custom Footer */}
           <div className="border-t border-primary/10 px-6 py-4 space-y-4">
-            {support?.specialist?.name && (
-              <div className="rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 p-4 border border-primary/20">
-                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Need help?</p>
-                <p className="mt-2 text-sm font-semibold text-foreground">
-                  Contact {support.specialist.name}{support.specialist.role ? `, ${support.specialist.role}` : ""}.
-                </p>
-                {support.specialist.phone && (
-                  <p className="text-xs text-muted-foreground">{support.specialist.phone}</p>
-                )}
-                {support.specialist.email && (
-                  <a href={`mailto:${support.specialist.email}`} className="text-xs text-primary underline">
-                    {support.specialist.email}
-                  </a>
-                )}
-              </div>
-            )}
+            {(() => {
+              const specialist = support?.specialist;
+              const supportEmail = specialist?.email || BRAND.supportEmail;
+              if (!specialist?.name && !supportEmail) return null;
+              return (
+                <div className="rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 p-4 border border-primary/20">
+                  <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Need help?</p>
+                  {specialist?.name ? (
+                    <p className="mt-2 text-sm font-semibold text-foreground">{specialist.name}</p>
+                  ) : null}
+                  {specialist?.role ? (
+                    <p className="mt-0.5 text-xs text-muted-foreground">{specialist.role}</p>
+                  ) : specialist?.bio ? (
+                    <p className="mt-1 text-xs text-muted-foreground">{specialist.bio}</p>
+                  ) : null}
+                  {specialist?.phone ? (
+                    <p className="mt-1 text-xs text-muted-foreground">{specialist.phone}</p>
+                  ) : null}
+                  {supportEmail ? (
+                    <a
+                      href={`mailto:${supportEmail}`}
+                      className="mt-2 block text-xs text-primary underline break-all"
+                    >
+                      {supportEmail}
+                    </a>
+                  ) : null}
+                </div>
+              );
+            })()}
             <SignOutButton />
           </div>
         </div>

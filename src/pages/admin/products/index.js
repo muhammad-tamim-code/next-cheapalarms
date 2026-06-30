@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Head from "next/head";
 import { apiFetch } from "../../../lib/api/apiFetch";
 import { Button } from "../../../components/ui/button";
@@ -7,175 +7,87 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from ".
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../../components/ui/card";
 import AdminLayout from "../../../components/admin/layout/AdminLayout";
 import { requireAdmin } from "../../../lib/auth/requireAdmin";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../../../components/ui/alert-dialog";
 import { toast } from "sonner";
+import { RefreshCw } from "lucide-react";
+import { proxyGhlImageUrl } from "../../../lib/admin/ghl-image";
+import { useDebouncedValue } from "../../../lib/hooks/useDebounce";
 
-const initialProduct = {
-  type: "base",
+const initialCatalogProduct = {
   name: "",
-  brand: "",
-  status: "active",
-  price: { oneOffExGst: 0, installExGst: 0 },
-  gstRate: 0.1,
-  installMinutes: 0,
-  tags: [],
-  attributes: {},
-  // base
-  addons: [],
-  // addon
-  maxQtyPerSite: undefined,
-  // package
-  baseId: "",
-  components: [],
+  sku: "",
+  description: "",
+  amount: 0,
+  productType: "SERVICE",
+  image: "",
 };
 
 export default function AdminProducts({ authContext }) {
-  const [items, setItems] = useState([]);
-  const [baseItems, setBaseItems] = useState([]);
-  const [addonItems, setAddonItems] = useState([]);
-  const [packageItems, setPackageItems] = useState([]);
-  const [tab, setTab] = useState("base"); // base|addons|packages
-  const [form, setForm] = useState(initialProduct);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [baseInput, setBaseInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [loadingLists, setLoadingLists] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState(null);
+  const [catalogItems, setCatalogItems] = useState([]);
+  const [catalogForm, setCatalogForm] = useState(initialCatalogProduct);
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(catalogSearch, 300);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogSaving, setCatalogSaving] = useState(false);
+  const [catalogError, setCatalogError] = useState(null);
 
-  useEffect(() => {
-    fetchAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fetchCatalog = useCallback(async (search = "") => {
+    try {
+      setCatalogLoading(true);
+      setCatalogError(null);
+      const params = new URLSearchParams({
+        limit: "500",
+        excludeCalculator: "1",
+      });
+      if (search.trim()) {
+        params.set("search", search.trim());
+      }
+      const data = await apiFetch(`/api/products/ghl?${params.toString()}`);
+      const rows = Array.isArray(data?.items) ? data.items : [];
+      setCatalogItems(rows);
+    } catch (e) {
+      setCatalogError(e.message);
+    } finally {
+      setCatalogLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    // Switch instantly using cached results; no network roundtrip on tab change
-    if (tab === "base") setItems(baseItems);
-    else if (tab === "addons") setItems(addonItems);
-    else setItems(packageItems);
-  }, [tab, baseItems, addonItems, packageItems]);
+    fetchCatalog(debouncedSearch);
+  }, [debouncedSearch, fetchCatalog]);
 
-  async function fetchAll() {
-    try {
-      setLoadingLists(true);
-      setError(null);
-      const [b, a, p] = await Promise.all([
-        apiFetch("/api/products/base"),
-        apiFetch("/api/products/addons"),
-        apiFetch("/api/products/packages"),
-      ]);
-      setBaseItems(Array.isArray(b) ? b : []);
-      setAddonItems(Array.isArray(a) ? a : []);
-      setPackageItems(Array.isArray(p) ? p : []);
-      // Set visible list according to current tab
-      if (tab === "base") setItems(Array.isArray(b) ? b : []);
-      else if (tab === "addons") setItems(Array.isArray(a) ? a : []);
-      else setItems(Array.isArray(p) ? p : []);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoadingLists(false);
-    }
-  }
-
-  function update(path, value) {
-    setForm((prev) => {
-      const next = structuredClone(prev);
-      const parts = path.split(".");
-      let cur = next;
-      for (let i = 0; i < parts.length - 1; i++) {
-        const p = parts[i];
-        if (cur[p] == null || typeof cur[p] !== "object") cur[p] = {};
-        cur = cur[p];
-      }
-      cur[parts[parts.length - 1]] = value;
-      return next;
-    });
-  }
-
-  function addBaseAddon() {
-    setForm((prev) => ({ ...prev, addons: [...(prev.addons || []), { addonId: "", minQty: 0, maxQty: 0, defaultQty: 0 }] }));
-  }
-  function addPackageComponent() {
-    setForm((prev) => ({
-      ...prev,
-      components: [...(prev.components || []), { addonId: "", minQty: 0, maxQty: 0, defaultQty: 0, powerDrawmA: undefined }],
-    }));
-  }
-  function removeBaseAddon(idx) {
-    setForm((prev) => {
-      const next = { ...prev, addons: [...(prev.addons || [])] };
-      next.addons.splice(idx, 1);
-      return next;
-    });
-  }
-  function removePackageComponent(idx) {
-    setForm((prev) => {
-      const next = { ...prev, components: [...(prev.components || [])] };
-      next.components.splice(idx, 1);
-      return next;
-    });
-  }
-  function clearPackageBase() {
-    setForm((prev) => ({ ...prev, baseId: "" }));
-    setBaseInput("");
-  }
-  function confirmPackageBase() {
-    setForm((prev) => ({ ...prev, baseId: String(baseInput || "").trim() }));
-  }
-  // Keep the local input in sync when baseId changes externally (e.g., after save/reset)
-  useEffect(() => {
-    if ((form.baseId || "") !== baseInput) {
-      setBaseInput(form.baseId || "");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.baseId]);
-
-  async function submit(e) {
+  async function submitCatalog(e) {
     e.preventDefault();
     try {
-      setSaving(true);
-      setError(null);
-      const payload = sanitize(form);
-      const data = await apiFetch("/api/products", {
+      setCatalogSaving(true);
+      setCatalogError(null);
+      const data = await apiFetch("/api/products/ghl", {
         method: "POST",
-        body: payload,
+        body: {
+          name: catalogForm.name.trim(),
+          sku: catalogForm.sku.trim(),
+          description: catalogForm.description.trim(),
+          amount: Number(catalogForm.amount) || 0,
+          productType: catalogForm.productType,
+          image: catalogForm.image.trim(),
+          currency: "AUD",
+        },
       });
-      if (!data?.ok) throw new Error(data?.message || data?.err || "Save failed");
-      setForm(initialProduct);
-      await fetchAll();
+      if (!data?.ok || !data?.item) {
+        throw new Error(data?.err || "Create failed");
+      }
+      toast.success(`Created ${data.item.name} in GHL and local catalog`);
+      setCatalogForm(initialCatalogProduct);
+      setCatalogItems((prev) => {
+        const without = prev.filter((p) => p.id !== data.item.id);
+        return [data.item, ...without];
+      });
+      await fetchCatalog(debouncedSearch);
     } catch (e) {
-      setError(e.message);
+      setCatalogError(e.message);
+      toast.error(e.message || "Failed to create product");
     } finally {
-      setSaving(false);
+      setCatalogSaving(false);
     }
-  }
-
-  function handleDeleteClick(id) {
-    setProductToDelete(id);
-    setDeleteDialogOpen(true);
-  }
-
-  async function remove(id) {
-    try {
-      await apiFetch(`/api/products/${encodeURIComponent(id)}`, { method: "DELETE" });
-    } catch (err) {
-      toast.error(err?.response?.message ?? err?.response?.err ?? err?.message ?? "Delete failed");
-      return;
-    }
-    await fetchAll();
-    setDeleteDialogOpen(false);
-    setProductToDelete(null);
   }
 
   return (
@@ -187,360 +99,148 @@ export default function AdminProducts({ authContext }) {
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Add / Update product</CardTitle>
-              <CardDescription>Single form with type-specific fields.</CardDescription>
+              <CardTitle>Add GHL catalog product</CardTitle>
+              <CardDescription>
+                Creates in GoHighLevel and saves to the local product cache (Quick Quote + estimates).
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {error ? <p className="mb-4 text-sm text-error">{error}</p> : null}
-              <form onSubmit={submit} className="space-y-4 text-sm">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div>
-                    <label className="block text-xs text-muted-foreground">Type</label>
-                    <Select value={form.type} onValueChange={(value) => setForm((prev) => ({ ...prev, type: value }))}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="base">base</SelectItem>
-                        <SelectItem value="addon">addon</SelectItem>
-                        <SelectItem value="package">package</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground">Status</label>
-                    <Select value={form.status} onValueChange={(value) => update("status", value)}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">active</SelectItem>
-                        <SelectItem value="inactive">inactive</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              {catalogError ? <p className="mb-4 text-sm text-error">{catalogError}</p> : null}
+              <form onSubmit={submitCatalog} className="space-y-4 text-sm">
+                <div>
+                  <label className="block text-xs text-muted-foreground">Name</label>
+                  <Input
+                    className="mt-1"
+                    value={catalogForm.name}
+                    onChange={(e) => setCatalogForm((p) => ({ ...p, name: e.target.value }))}
+                    required
+                  />
                 </div>
-
                 <div className="grid gap-3 md:grid-cols-2">
                   <div>
-                    <label className="block text-xs text-muted-foreground">Name</label>
+                    <label className="block text-xs text-muted-foreground">SKU</label>
                     <Input
                       className="mt-1"
-                      value={form.name}
-                      onChange={(e) => update("name", e.target.value)}
-                      required
+                      value={catalogForm.sku}
+                      onChange={(e) => setCatalogForm((p) => ({ ...p, sku: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-muted-foreground">Brand</label>
-                    <Input
-                      className="mt-1"
-                      value={form.brand || ""}
-                      onChange={(e) => update("brand", e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div>
-                    <label className="block text-xs text-muted-foreground">Price (ex GST)</label>
+                    <label className="block text-xs text-muted-foreground">Price (AUD, inc GST)</label>
                     <Input
                       type="number"
                       step="0.01"
+                      min="0.01"
                       className="mt-1"
-                      value={form.price.oneOffExGst}
-                      onChange={(e) => update("price.oneOffExGst", parseFloat(e.target.value || "0"))}
+                      value={catalogForm.amount}
+                      onChange={(e) => setCatalogForm((p) => ({ ...p, amount: e.target.value }))}
+                      required
                     />
                   </div>
-                  {form.type !== "package" ? null : (
-                    <div>
-                      <label className="block text-xs text-muted-foreground">GST rate</label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="mt-1"
-                        value={form.gstRate}
-                        onChange={(e) => update("gstRate", parseFloat(e.target.value || "0.1"))}
-                      />
-                    </div>
-                  )}
                 </div>
-
-                {form.type === "package" ? (
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <div>
-                      <label className="block text-xs text-muted-foreground">Install minutes</label>
-                      <Input
-                        type="number"
-                        className="mt-1"
-                        value={form.installMinutes}
-                        onChange={(e) => update("installMinutes", parseInt(e.target.value || "0", 10))}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-
-                {form.type === "addon" ? (
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <label className="block text-xs text-muted-foreground">Max qty per site</label>
-                      <Input
-                        type="number"
-                        className="mt-1"
-                        value={form.maxQtyPerSite || 0}
-                        onChange={(e) => update("maxQtyPerSite", parseInt(e.target.value || "0", 10))}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* No addons section on base form by design */}
-
-                {form.type === "package" ? (
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-sm font-medium">Base</label>
-                        {form.baseId ? (
-                          <Button type="button" variant="ghost" size="sm" onClick={clearPackageBase}>
-                            Remove base
-                          </Button>
-                        ) : null}
-                      </div>
-                      {form.baseId ? (
-                        <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-                          <span className="text-muted-foreground">Selected base</span>
-                          <span className="font-medium text-foreground">{form.baseId}</span>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Enter baseId (e.g., base_ajax_hub2_4g)"
-                            value={baseInput}
-                            onChange={(e) => setBaseInput(e.target.value)}
-                          />
-                          <Button type="button" variant="outline" size="sm" onClick={confirmPackageBase} disabled={!baseInput.trim()}>
-                            Set base
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">Components</label>
-                      <Button type="button" variant="outline" size="sm" onClick={addPackageComponent}>
-                        Add component
-                      </Button>
-                    </div>
-                    <div className="hidden grid-cols-7 gap-2 text-xs text-muted-foreground md:grid">
-                      <span>Addon ID</span>
-                      <span>Min qty</span>
-                      <span>Max qty</span>
-                      <span>Default qty</span>
-                      <span>Power (mA)</span>
-                      <span>Notes</span>
-                      <span>Actions</span>
-                    </div>
-                    {(form.components || []).map((row, idx) => (
-                      <div key={idx} className="grid grid-cols-2 items-start gap-2 md:grid-cols-7">
-                        <Input
-                          placeholder="addonId"
-                          value={row.addonId}
-                          onChange={(e) => update(`components.${idx}.addonId`, e.target.value)}
-                        />
-                        <Input
-                          type="number"
-                          placeholder="min qty"
-                          value={row.minQty}
-                          onChange={(e) => update(`components.${idx}.minQty`, parseInt(e.target.value || "0", 10))}
-                        />
-                        <Input
-                          type="number"
-                          placeholder="max qty"
-                          value={row.maxQty}
-                          onChange={(e) => update(`components.${idx}.maxQty`, parseInt(e.target.value || "0", 10))}
-                        />
-                        <Input
-                          type="number"
-                          placeholder="default qty"
-                          value={row.defaultQty}
-                          onChange={(e) => update(`components.${idx}.defaultQty`, parseInt(e.target.value || "0", 10))}
-                        />
-                        <Input
-                          type="number"
-                          placeholder="powerDraw mA"
-                          value={row.powerDrawmA || 0}
-                          onChange={(e) => update(`components.${idx}.powerDrawmA`, parseInt(e.target.value || "0", 10))}
-                        />
-                        <Input
-                          placeholder="notes"
-                          value={row.notes || ""}
-                          onChange={(e) => update(`components.${idx}.notes`, e.target.value)}
-                        />
-                        <Button type="button" variant="ghost" size="sm" onClick={() => removePackageComponent(idx)}>
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                <div className="pt-2">
-                  <Button type="submit" disabled={saving}>
-                    {saving ? "Saving..." : "Save product"}
-                  </Button>
+                <div>
+                  <label className="block text-xs text-muted-foreground">Description</label>
+                  <Input
+                    className="mt-1"
+                    value={catalogForm.description}
+                    onChange={(e) => setCatalogForm((p) => ({ ...p, description: e.target.value }))}
+                  />
                 </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="block text-xs text-muted-foreground">Product type</label>
+                    <Select
+                      value={catalogForm.productType}
+                      onValueChange={(value) => setCatalogForm((p) => ({ ...p, productType: value }))}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SERVICE">Service</SelectItem>
+                        <SelectItem value="PHYSICAL">Physical</SelectItem>
+                        <SelectItem value="DIGITAL">Digital</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground">Image URL</label>
+                    <Input
+                      className="mt-1"
+                      value={catalogForm.image}
+                      onChange={(e) => setCatalogForm((p) => ({ ...p, image: e.target.value }))}
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+                <Button type="submit" disabled={catalogSaving}>
+                  {catalogSaving ? "Creating…" : "Create in GHL + catalog"}
+                </Button>
               </form>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div>
-                  <CardTitle>Existing products</CardTitle>
-                  <CardDescription>Fetched from WordPress API via proxy.</CardDescription>
+                  <CardTitle>Catalog products</CardTitle>
+                  <CardDescription>From local DB (synced with GHL).</CardDescription>
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchCatalog(debouncedSearch)}
+                  disabled={catalogLoading}
+                >
+                  <RefreshCw className={`mr-1 h-3.5 w-3.5 ${catalogLoading ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-1 rounded-full border border-border bg-muted/60 p-1 text-xs shadow-sm">
-                  {[
-                    { key: "base", label: "Base" },
-                    { key: "addons", label: "Addons" },
-                    { key: "packages", label: "Packages" },
-                  ].map(({ key, label }) => (
-                    <Button
-                      key={key}
-                      type="button"
-                      onClick={() => setTab(key)}
-                      variant={tab === key ? "default" : "ghost"}
-                      size="sm"
-                      className="rounded-full"
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    placeholder="Search name, brand, ID…"
-                    className="w-56"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                  <Button type="button" variant="outline" size="sm" onClick={fetchAll} disabled={loadingLists}>
-                    {loadingLists ? "Refreshing…" : "Refresh"}
-                  </Button>
-                </div>
-              </div>
+              <Input
+                placeholder="Search name, SKU…"
+                className="mb-3"
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+              />
               <div className="mb-2 text-xs text-muted-foreground">
-                {items.filter((p) => filterMatch(p, search)).length} {tab === "base" ? "Base" : tab === "addons" ? "Addons" : "Packages"}
+                {catalogItems.length} products
               </div>
-              <div className="divide-y divide-border rounded-md border border-border/60 bg-card/30 text-sm">
-                {items.filter((p) => filterMatch(p, search)).map((p) => (
-                  <div key={p.id} className="flex items-start justify-between gap-4 px-4 py-3 transition hover:bg-muted/30">
-                    <div className="space-y-0.5">
-                      <p className="font-medium text-foreground">
-                        {p.name}{" "}
-                        <span className="text-xs uppercase text-muted-foreground">
-                          [{p.type === "base" ? "Base" : p.type === "addon" ? "Addon" : "Package"}] • <code>{p.id}</code>
-                        </span>
-                      </p>
+              <div className="divide-y divide-border rounded-md border border-border/60 bg-card/30 text-sm max-h-[32rem] overflow-y-auto">
+                {catalogItems.map((p) => (
+                  <div key={p.id} className="flex items-start gap-3 px-4 py-3">
+                    {p.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={proxyGhlImageUrl(p.image)}
+                        alt=""
+                        className="h-10 w-10 shrink-0 rounded border border-border object-cover"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 shrink-0 rounded border border-border bg-muted" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-foreground">{p.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {p.brand || "—"} • exGST ${Number(p?.price?.oneOffExGst ?? 0).toFixed(2)} • GST {Number(p?.gstRate ?? 0).toFixed(2)}
+                        {p.sku || "—"} • AU${Number(p.amount ?? 0).toFixed(2)} • <code>{p.id}</code>
                       </p>
-                      {p.type === "package" ? (
-                        <p className="text-xs text-muted-foreground">
-                          base: <code>{p.baseId}</code> • components: {(p.components || []).length}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleDeleteClick(p.id)}>
-                        Delete
-                      </Button>
                     </div>
                   </div>
                 ))}
-                {items.filter((p) => filterMatch(p, search)).length === 0 ? (
-                  <div className="px-4 py-6 text-center text-xs text-muted-foreground">No results match your search.</div>
+                {catalogItems.length === 0 ? (
+                  <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                    {catalogLoading ? "Loading…" : "No catalog products yet."}
+                  </div>
                 ) : null}
               </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Product</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete this product? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => productToDelete && remove(productToDelete)}>
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </AdminLayout>
     </>
-  );
-}
-
-function sanitize(input) {
-  const out = { ...input };
-  // Ensure numeric types are numbers
-  out.price = {
-    oneOffExGst: Number(input.price?.oneOffExGst || 0),
-    installExGst: 0,
-  };
-  if (out.type === "package") {
-    out.gstRate = Number(input.gstRate || 0.1);
-    out.installMinutes = Number(input.installMinutes || 0);
-  } else {
-    out.gstRate = Number(input.gstRate || 0.1);
-    out.installMinutes = 0;
-  }
-  // Clean arrays for type
-  if (out.type === "base") {
-    delete out.addons;
-    delete out.components;
-    delete out.baseId;
-    delete out.maxQtyPerSite;
-  } else if (out.type === "addon") {
-    delete out.maxQtyPerSite;
-    delete out.addons;
-    delete out.components;
-    delete out.baseId;
-  } else if (out.type === "package") {
-    out.baseId = String(out.baseId || "");
-    out.components = (out.components || []).map((r) => ({
-      addonId: String(r.addonId || ""),
-      minQty: Number(r.minQty || 0),
-      maxQty: Number(r.maxQty || 0),
-      defaultQty: Number(r.defaultQty || 0),
-      powerDrawmA: r.powerDrawmA != null ? Number(r.powerDrawmA) : undefined,
-      notes: r.notes || undefined,
-    }));
-    delete out.addons;
-    delete out.maxQtyPerSite;
-  }
-  return out;
-}
-
-function filterMatch(p, q) {
-  if (!q || !q.trim()) return true;
-  const s = q.toLowerCase();
-  return (
-    String(p.name || "").toLowerCase().includes(s) ||
-    String(p.brand || "").toLowerCase().includes(s) ||
-    String(p.id || "").toLowerCase().includes(s)
   );
 }
 
@@ -551,4 +251,3 @@ export async function getServerSideProps(ctx) {
   }
   return { props: { ...(authCheck.props || {}) } };
 }
-

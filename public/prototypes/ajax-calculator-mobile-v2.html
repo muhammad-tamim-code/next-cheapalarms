@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0C2D44" />
+  <title>Design my Ajax system — Safeguard (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --sg-navy:#0C2D44; --sg-blue:#1769A1; --sg-blue-dark:#125882;
+      --sg-orange:#FB7523; --sg-orange-deep:#EA7914;
+      --sg-wash:#EAF3F9; --sg-wash-deep:#DBEAF4;
+      --sg-ink:#1E2A33; --sg-muted:#5A6B77; --sg-faint:#93A4B0;
+      --sg-line:#DCE6EE; --sg-white:#fff; --sg-success:#1F9D57; --sg-success-soft:#e8f7ee;
+      --font-head:"Chakra Petch",ui-sans-serif,sans-serif; --font-body:"Inter",system-ui,sans-serif;
+      --gutter:18px; --max:480px;
+      --sh-sm:0 1px 2px rgba(12,45,68,.06),0 4px 14px -8px rgba(12,45,68,.14);
+      --sh:0 6px 24px -10px rgba(12,45,68,.22);
+      --sh-pop:0 18px 50px -20px rgba(12,45,68,.5);
+    }
+    *,*::before,*::after{box-sizing:border-box}
+    html{-webkit-text-size-adjust:100%;height:100%;overflow:hidden}
+    body{margin:0;height:100%;font-family:var(--font-body);font-size:15px;line-height:1.5;color:var(--sg-ink);background:var(--sg-white);overflow:hidden}
+    :focus-visible{outline:2px solid var(--sg-blue);outline-offset:2px}
+    .app{display:flex;flex-direction:column;height:100%;max-width:var(--max);margin:0 auto;width:100%;overflow:hidden;background:var(--sg-white)}
+    .app>.header,.app>.progress-wrap,.app>.resume,.app>.footer{flex-shrink:0}
+
+    .header{z-index:20;background:var(--sg-white);border-bottom:1px solid var(--sg-line);padding:11px var(--gutter);display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .logo{display:flex;align-items:center;text-decoration:none;min-width:0}
+    .logo-img{height:30px;width:auto;max-width:150px;object-fit:contain;display:block}
+    .logo-fb{display:flex;align-items:center;gap:9px}
+    .logo-fb .mk{width:30px;height:34px;flex-shrink:0}
+    .logo-fb .tx{line-height:1.04}
+    .logo-fb .tx b{font-family:var(--font-head);font-size:15px;font-weight:700;color:var(--sg-navy)}
+    .logo-fb .tx small{display:block;font-size:8px;font-weight:600;letter-spacing:.2em;color:var(--sg-orange);text-transform:uppercase}
+    .header-phone{display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;flex-shrink:0}
+    .header-phone .ph-ic{width:30px;height:30px;border-radius:50%;background:var(--sg-wash);color:var(--sg-blue);display:grid;place-items:center}
+    .header-phone .ph-ic svg{width:15px;height:15px}
+    .header-phone small{display:block;font-size:9.5px;color:var(--sg-muted)}
+    .header-phone strong{font-size:13px;color:var(--sg-navy);font-weight:700;white-space:nowrap}
+    @media(max-width:360px){.header-phone .ph-tx{display:none}}
+
+    .progress-wrap{padding:14px var(--gutter) 0}
+    .progress-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+    .progress-meta .step-name{font-family:var(--font-head);font-weight:700;color:var(--sg-navy);text-transform:uppercase;letter-spacing:.07em;font-size:12px}
+    .progress-meta #prog-step{font-size:11px;color:var(--sg-faint);font-weight:500}
+    .progress-bar{height:5px;background:var(--sg-line);overflow:hidden}
+    .progress-fill{height:100%;background:linear-gradient(90deg,var(--sg-blue),#2a8fc9);transition:width .4s cubic-bezier(.4,0,.2,1)}
+
+    .resume{padding:12px var(--gutter) 0}
+    .resume-bar{display:flex;align-items:center;gap:9px;background:var(--sg-success-soft);border:1px solid #cde8d2;padding:10px 13px;font-size:13px;color:#1d6b35}
+    .resume-bar .rc{color:var(--sg-success);display:grid;place-items:center}
+    .resume-bar button{margin-left:auto;background:none;border:none;font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--sg-navy);text-decoration:underline;cursor:pointer}
+
+    .main{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px var(--gutter) 20px}
+    .view{animation:rise .34s cubic-bezier(.2,.7,.3,1) both}
+    @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .main h1{margin:0 0 6px;font-family:var(--font-head);font-size:1.5rem;font-weight:700;color:var(--sg-navy);line-height:1.18;letter-spacing:-.01em}
+    .lead{margin:0 0 18px;font-size:.9rem;color:var(--sg-muted)}
+    .stack{display:flex;flex-direction:column;gap:11px}
+
+    .choice{display:flex;align-items:center;gap:13px;width:100%;padding:15px;border:1.5px solid var(--sg-line);background:var(--sg-white);box-shadow:var(--sh-sm);text-align:left;cursor:pointer;font-family:inherit;color:inherit;-webkit-tap-highlight-color:transparent;transition:border-color .15s,background .15s,box-shadow .15s,transform .08s}
+    .choice:hover{border-color:#b9d0e0}
+    .choice:active{transform:scale(.99)}
+    .choice.selected{border-color:var(--sg-blue);background:var(--sg-wash);box-shadow:0 0 0 3px rgba(23,105,161,.14),var(--sh-sm)}
+    .choice-icon{width:46px;height:46px;background:var(--sg-wash);display:grid;place-items:center;flex-shrink:0;color:var(--sg-blue);transition:background .15s,color .15s}
+    .choice.selected .choice-icon{background:var(--sg-blue);color:#fff}
+    .choice-icon svg{width:23px;height:23px}
+    .choice-body{flex:1;min-width:0}
+    .choice-body strong{display:block;font-size:.97rem;font-weight:700;color:var(--sg-navy)}
+    .choice-body p{margin:2px 0 0;font-size:.82rem;color:var(--sg-muted)}
+    .choice-go{flex-shrink:0;width:24px;height:24px;display:grid;place-items:center;color:var(--sg-faint)}
+    .choice-go svg{width:18px;height:18px}
+    .choice.selected .choice-go{width:24px;height:24px;border-radius:50%;background:var(--sg-blue);color:#fff}
+    .choice.selected .choice-go .chev{display:none}
+    .choice-go .tick{display:none}
+    .choice.selected .choice-go .tick{display:block}
+
+    .field-card,.toggle-row{display:flex;align-items:center;gap:13px;padding:14px 15px;border:1.5px solid var(--sg-line);background:var(--sg-white);box-shadow:var(--sh-sm);margin-bottom:11px}
+    .toggle-row{cursor:pointer}
+    .field-icon{width:44px;height:44px;background:var(--sg-wash);display:grid;place-items:center;flex-shrink:0;color:var(--sg-blue)}
+    .field-icon svg{width:22px;height:22px}
+    .field-text{flex:1;min-width:0}
+    .field-text label{display:block;font-weight:700;font-size:.95rem;color:var(--sg-navy)}
+    .field-text .sub{font-size:.81rem;color:var(--sg-muted);margin-top:1px}
+    .stepper{display:flex;align-items:center;flex-shrink:0;border:1.5px solid var(--sg-line);overflow:hidden}
+    .stepper button{width:42px;height:44px;border:none;background:var(--sg-white);font-size:1.3rem;cursor:pointer;color:var(--sg-navy);transition:background .12s}
+    .stepper button:active{background:var(--sg-wash)}
+    .stepper button:disabled{color:#c4d2dc;cursor:not-allowed}
+    .stepper .num{width:40px;text-align:center;font-family:var(--font-head);font-size:1.05rem;font-weight:700;color:var(--sg-navy);border-left:1.5px solid var(--sg-line);border-right:1.5px solid var(--sg-line);height:44px;line-height:44px}
+
+    .switch{position:relative;width:50px;height:28px;flex-shrink:0;pointer-events:none}
+    .switch input{opacity:0;width:0;height:0;position:absolute}
+    .switch .track{position:absolute;inset:0;background:var(--sg-line);transition:background .2s}
+    .switch input:checked + .track{background:var(--sg-blue)}
+    .switch .thumb{position:absolute;width:22px;height:22px;left:3px;top:3px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+    .switch input:checked ~ .thumb{transform:translateX(22px)}
+
+    .info-box{display:flex;gap:11px;align-items:flex-start;margin:0 0 16px;padding:14px 15px;background:var(--sg-wash);border:1px solid var(--sg-wash-deep);font-size:.84rem;color:#1b4a6b;line-height:1.5}
+    .info-box .ni{color:var(--sg-blue);flex-shrink:0;margin-top:1px}
+    .info-box strong{color:var(--sg-navy)}
+    .ghost-link{display:block;width:100%;margin-top:4px;padding:13px;border:1.5px dashed #b9d0e0;background:#fff;color:var(--sg-blue);font-family:var(--font-head);font-weight:700;font-size:.86rem;cursor:pointer}
+    .ghost-link:hover{background:var(--sg-wash);border-color:var(--sg-blue)}
+
+    /* expandable add-on */
+    .addon{border:1.5px solid var(--sg-line);box-shadow:var(--sh-sm);margin-bottom:11px}
+    .addon.open{border-color:var(--sg-blue)}
+    .addon-body{padding:0 15px 14px;border-top:1px solid var(--sg-line)}
+    .addon-body .field-card{box-shadow:none;border:1px solid var(--sg-line);margin:12px 0 0}
+
+    /* review */
+    .cat-label{display:flex;align-items:center;gap:9px;font-family:var(--font-head);font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--sg-navy);margin:24px 0 11px}
+    .cat-label::before{content:"";width:4px;height:15px;background:var(--sg-orange);flex-shrink:0}
+    .cat-label:first-of-type{margin-top:8px}
+    .kit-block{border:1.5px solid var(--sg-line);background:#fff;box-shadow:var(--sh-sm);overflow:hidden;margin-bottom:10px}
+    .kit-item{padding:13px 15px;border-bottom:1px solid var(--sg-line)}
+    .kit-item:last-child{border-bottom:none}
+    .kit-item-top{display:flex;gap:12px;align-items:flex-start}
+    .kit-thumb{width:46px;height:46px;background:var(--sg-wash);display:grid;place-items:center;flex-shrink:0;color:var(--sg-blue)}
+    .kit-thumb svg{width:22px;height:22px}
+    .kit-name{flex:1;min-width:0}
+    .kit-name strong{display:block;font-size:.9rem;font-weight:700;color:var(--sg-navy)}
+    .kit-name span{font-size:.77rem;color:var(--sg-muted)}
+    .colour-dots{display:flex;gap:7px;margin-top:9px}
+    .colour-dot{width:18px;height:18px;border-radius:50%;border:1.5px solid #c4d2dc;cursor:pointer}
+    .colour-dot.white{background:#fff}
+    .colour-dot.black{background:#23282e;border-color:#23282e}
+    .colour-dot.sel{box-shadow:0 0 0 2px var(--sg-white),0 0 0 3.5px var(--sg-blue)}
+    .kit-item-bot{display:flex;align-items:center;justify-content:space-between;margin-top:12px;gap:8px}
+    .btn-text{background:none;border:none;padding:0;font-family:var(--font-body);font-size:.82rem;font-weight:700;color:var(--sg-blue);cursor:pointer}
+    .inc-chip{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:700;color:var(--sg-success);background:var(--sg-success-soft);padding:3px 9px}
+    .btn-del{background:none;border:none;color:var(--sg-faint);cursor:pointer;padding:4px;flex-shrink:0}
+    .btn-del:hover{color:var(--sg-orange-deep)}
+    .btn-del svg{width:18px;height:18px}
+    .qty-fixed{font-family:var(--font-head);font-weight:700;font-size:.95rem;color:var(--sg-navy);background:var(--sg-wash);padding:3px 12px}
+    .btn-add{width:100%;padding:13px;border:1.5px dashed #b9d0e0;background:var(--sg-white);color:var(--sg-blue);font-family:var(--font-head);font-size:.84rem;font-weight:700;cursor:pointer;margin-bottom:6px}
+    .btn-add:hover{background:var(--sg-wash);border-color:var(--sg-blue)}
+    .svc-card{display:flex;align-items:center;gap:12px;border:1.5px solid var(--sg-blue);background:var(--sg-wash);padding:13px 15px;margin-bottom:6px}
+    .svc-card .field-icon{background:var(--sg-blue);color:#fff}
+    .svc-card .bd{flex:1}
+    .svc-card .bd strong{display:block;font-size:.9rem;color:var(--sg-navy)}
+    .svc-card .bd span{font-size:.78rem;color:var(--sg-muted)}
+    .svc-card .edit{font-size:.82rem;font-weight:700;color:var(--sg-blue);background:none;border:none;cursor:pointer;font-family:var(--font-body)}
+
+    /* form + OTP */
+    .form-field{margin-bottom:14px}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .form-field label{display:block;font-size:.82rem;font-weight:700;color:var(--sg-navy);margin-bottom:6px}
+    .form-field .opt{color:var(--sg-faint);font-weight:500}
+    .form-field input{width:100%;height:50px;padding:0 14px;border:1.5px solid var(--sg-line);font-size:16px;font-family:inherit;background:#fff;transition:border-color .15s,box-shadow .15s}
+    .form-field input:focus{outline:none;border-color:var(--sg-blue);box-shadow:0 0 0 3px rgba(23,105,161,.14)}
+    .form-field input.bad{border-color:var(--sg-orange);box-shadow:0 0 0 3px rgba(251,117,35,.16)}
+    .form-err{color:var(--sg-orange-deep);font-size:.75rem;margin-top:5px;font-weight:600}
+    .phone-row{display:flex;gap:8px}
+    .phone-row input{flex:1}
+    .btn-otp{height:50px;padding:0 16px;border:none;background:var(--sg-navy);color:#fff;font-family:var(--font-head);font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap;flex-shrink:0}
+    .btn-otp:disabled{background:#b8c4ce;cursor:not-allowed}
+    .otp-panel{margin-top:10px;padding:14px;border:1.5px solid var(--sg-blue);background:var(--sg-wash)}
+    .otp-panel .ot-lead{font-size:.82rem;color:var(--sg-ink);margin:0 0 10px}
+    .otp-panel .ot-lead b{color:var(--sg-navy)}
+    .otp-inrow{display:flex;gap:8px}
+    .otp-inrow input{flex:1;height:50px;text-align:center;letter-spacing:.4em;font-family:var(--font-head);font-weight:700;font-size:1.1rem;border:1.5px solid var(--sg-line);background:#fff}
+    .otp-meta{display:flex;justify-content:space-between;align-items:center;margin-top:9px;font-size:.76rem;color:var(--sg-muted)}
+    .otp-meta button{background:none;border:none;color:var(--sg-blue);font-weight:700;font-family:inherit;cursor:pointer;font-size:.76rem}
+    .verified{display:flex;align-items:center;gap:8px;margin-top:10px;padding:11px 14px;background:var(--sg-success-soft);border:1px solid #cde8d2;color:#1d6b35;font-weight:700;font-size:.85rem}
+    .verified .vc{display:grid;place-items:center;color:var(--sg-success)}
+    .consent{display:flex;gap:10px;font-size:.83rem;color:var(--sg-muted);margin-top:8px;cursor:pointer}
+    .consent input{width:19px;height:19px;margin-top:1px;accent-color:var(--sg-blue);flex-shrink:0}
+
+    .success{text-align:center;padding:28px 4px}
+    .success-icon{width:76px;height:76px;margin:0 auto 20px;background:var(--sg-success-soft);color:var(--sg-success);border-radius:50%;display:grid;place-items:center;animation:pop .5s cubic-bezier(.2,1.5,.4,1) both}
+    @keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+    .success-icon svg{width:38px;height:38px}
+    .success h1{text-align:center}
+    .success .lead{text-align:center;margin-inline:auto;max-width:32ch}
+    .success .em{font-weight:800;color:var(--sg-navy)}
+    .success-card{text-align:left;border:1.5px solid var(--sg-line);box-shadow:var(--sh-sm);padding:18px;margin-top:22px}
+    .success-card h2{margin:0 0 12px;font-family:var(--font-head);font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--sg-muted)}
+    .success-card ol{margin:0;padding-left:20px;font-size:.88rem;color:var(--sg-ink)}
+    .success-card li+li{margin-top:9px}
+    .btn-link{margin-top:22px;background:none;border:none;color:var(--sg-blue);font-weight:700;font-family:inherit;cursor:pointer;text-decoration:underline}
+
+    .footer{z-index:30;background:var(--sg-white);border-top:1px solid var(--sg-line);padding:10px var(--gutter) calc(10px + env(safe-area-inset-bottom,0px))}
+    .footer-inner{max-width:100%;margin:0 auto;display:flex;align-items:center;gap:10px}
+    .btn{height:52px;border:none;font-family:var(--font-head);font-size:.92rem;font-weight:700;letter-spacing:.03em;cursor:pointer;transition:filter .15s,transform .08s,background .15s}
+    .btn:active{transform:translateY(1px)}
+    .btn-back{min-width:92px;background:var(--sg-white);border:1.5px solid var(--sg-line);color:var(--sg-navy)}
+    .btn-back:active{background:var(--sg-wash)}
+    .btn-next{flex:1;background:var(--sg-orange);color:var(--sg-white);display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 10px 24px -10px rgba(251,117,35,.7)}
+    .btn-next svg{width:18px;height:18px}
+    .btn-next:hover{filter:brightness(1.05)}
+    .btn-next:disabled{background:#f6c4a3;box-shadow:none;cursor:not-allowed}
+
+    .sheet-bg{position:fixed;inset:0;background:rgba(12,45,68,.5);z-index:100;display:flex;align-items:flex-end;justify-content:center;animation:fade .2s ease}
+    @keyframes fade{from{opacity:0}to{opacity:1}}
+    @media(min-width:520px){.sheet-bg{align-items:center}}
+    .sheet{background:var(--sg-white);width:100%;max-width:var(--max);max-height:86vh;overflow-y:auto;padding:8px 16px calc(16px + env(safe-area-inset-bottom));box-shadow:var(--sh-pop);animation:slideup .3s cubic-bezier(.2,1,.3,1)}
+    @keyframes slideup{from{transform:translateY(50px);opacity:.5}to{transform:none;opacity:1}}
+    .sheet-handle{width:40px;height:4px;background:var(--sg-line);margin:4px auto 14px}
+    .sheet h3{margin:0 0 3px;font-family:var(--font-head);color:var(--sg-navy);font-size:1.2rem}
+    .sheet .sheet-sub{margin:0 0 16px;font-size:.86rem;color:var(--sg-muted)}
+    .sheet-opt{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:14px;border:1.5px solid var(--sg-line);margin-bottom:9px;background:var(--sg-white);cursor:pointer;font-family:inherit;transition:border-color .15s,background .15s}
+    .sheet-opt.on{border-color:var(--sg-blue);background:var(--sg-wash);box-shadow:0 0 0 3px rgba(23,105,161,.12)}
+    .radio-dot{width:20px;height:20px;border:2px solid #c4d2dc;border-radius:50%;flex-shrink:0;position:relative}
+    .sheet-opt.on .radio-dot{border-color:var(--sg-blue)}
+    .sheet-opt.on .radio-dot::after{content:"";position:absolute;inset:3px;background:var(--sg-blue);border-radius:50%}
+    .sheet-opt .choice-body strong{font-size:.92rem}
+    .sheet-foot{display:flex;gap:10px;margin-top:14px;position:sticky;bottom:0;background:#fff;padding-bottom:4px}
+    .sheet-foot .btn{flex:1}
+
+    .snack-slot[hidden]{display:none!important}
+    .snack-slot{padding:0 0 8px}
+    .snack-bar{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--sg-navy);color:var(--sg-white);font-size:.88rem;border-radius:0}
+    .snack-undo{margin-left:auto;background:none;border:none;color:#ffb27a;font-weight:700;font-family:inherit;cursor:pointer;font-size:.88rem;padding:0}
+    .hidden{display:none!important}
+
+    @media(min-width:481px){
+      body{background:#eef3f8;display:flex;align-items:stretch;justify-content:center}
+      .app{height:100%;border:1px solid var(--sg-line);box-shadow:var(--sh)}
+    }
+    @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <a class="logo" href="https://safeguardsecurity.com.au" aria-label="Safeguard Security Services">
+        <img class="logo-img" src="../brand/logo-horizontal.png" alt="Safeguard Security Services" width="150" height="30"
+             onerror="this.style.display='none';document.getElementById('logo-fb').style.display='flex';" />
+        <span class="logo-fb" id="logo-fb" style="display:none">
+          <svg class="mk" viewBox="0 0 32 36" fill="none" aria-hidden="true">
+            <path d="M16 1 30 6v11c0 9-6 15-14 18C8 32 2 26 2 17V6L16 1Z" fill="#0C2D44"/>
+            <path d="M16 1 30 6v11c0 9-6 15-14 18V1Z" fill="#1769A1"/>
+            <path d="M10 17l4 4 8-8" stroke="#FB7523" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="tx"><b>Safeguard</b><small>Security Services</small></span>
+        </span>
+      </a>
+      <a class="header-phone" href="tel:1300225276">
+        <span class="ph-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg></span>
+        <span class="ph-tx"><small>Speak to an expert</small><strong>1300 225 276</strong></span>
+      </a>
+    </header>
+
+    <div class="progress-wrap" id="prog">
+      <div class="progress-meta"><span class="step-name" id="prog-label">Start</span><span id="prog-step">Step 1 of 9</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:11%"></div></div>
+    </div>
+
+    <div class="resume hidden" id="resume"></div>
+    <main class="main" id="view"></main>
+
+    <footer class="footer" id="foot">
+      <div id="snack-slot" class="snack-slot" hidden></div>
+      <div class="footer-inner">
+        <button type="button" class="btn btn-back hidden" id="back">Back</button>
+        <button type="button" class="btn btn-next" id="next">Continue</button>
+      </div>
+    </footer>
+  </div>
+
+  <div id="modal"></div>
+
+<script>
+/* ============ icons ============ */
+const I = {
+  build:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>',
+  star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 17.8 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/></svg>',
+  wire:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h6a4 4 0 0 1 4 4v2a4 4 0 0 0 4 4h2"/><circle cx="4" cy="7" r="2"/><circle cx="20" cy="17" r="2"/></svg>',
+  apt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/></svg>',
+  house:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
+  house2:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M5 14h14"/></svg>',
+  shop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9l1-5h14l1 5"/><path d="M4 9a3 3 0 0 0 6 0 3 3 0 0 0 4 0 3 3 0 0 0 6 0"/><path d="M5 11v9h14v-9"/></svg>',
+  door:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="1"/><circle cx="14.5" cy="12" r="1"/></svg>',
+  window:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M12 4v16M4 12h16"/></svg>',
+  motion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M5 12a7 7 0 0 1 7-7M19 12a7 7 0 0 1-7 7"/></svg>',
+  keypad:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>',
+  siren:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18v-5a7 7 0 0 1 14 0v5"/><path d="M3 18h18M12 3V1"/></svg>',
+  fob:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="14" rx="3"/><path d="M12 16v6M10 19h4"/></svg>',
+  hub:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="12" r="2.5"/></svg>',
+  cam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v10H3z"/><path d="M14 10l7-3v10l-7-3"/></svg>',
+  nvr:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="1"/><path d="M7 18v2M17 18v2M7 10h.01M11 10h6"/></svg>',
+  bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M10 16h4"/></svg>',
+  monitor:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 0-9 9 9 9 0 0 0 9 9 9 9 0 0 0 9-9"/><path d="M12 7v5l3 2"/></svg>',
+  self:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+  patrol:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+  link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a3 3 0 0 1 3-3h4a3 3 0 0 1 0 6h-2"/><path d="M15 12a3 3 0 0 1-3 3H8a3 3 0 0 1 0-6h2"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-9"/></svg>',
+  chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  tick:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-9"/></svg>',
+  arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>',
+  info:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>',
+};
+
+/* ============ catalogue (intrusion + CCTV + intercom; prices internal only) ============ */
+const CAT = { hub:"System hub", open:"Doors & windows", motion:"Motion", alarm:"Alarms & controls", camera:"Cameras", intercom:"Intercom" };
+const CAT_ORDER = ["hub","open","motion","alarm","camera","intercom"];
+const C2 = ["white"]; /* boss: white devices only */
+const PRODUCTS = {
+  /* boss: Hub 2 Plus only */
+  hub_plus:{ name:"Hub 2 Plus", desc:"Wi-Fi, Ethernet + 4G control panel", cat:"hub", icon:"hub", colours:C2, alts:["hub_plus"], price:540 },
+  door:{ name:"DoorProtect", desc:"Opening detector", cat:"open", icon:"door", colours:C2, alts:["door","door_plus","glass"], price:125 },
+  door_plus:{ name:"DoorProtect Plus", desc:"Opening + shock + tilt", cat:"open", icon:"door", colours:C2, alts:["door","door_plus","glass"], price:175 },
+  glass:{ name:"GlassProtect", desc:"Glass-break detector", cat:"open", icon:"window", colours:C2, alts:["door","door_plus","glass"], price:165 },
+  motion:{ name:"MotionProtect", desc:"Indoor PIR", cat:"motion", icon:"motion", colours:C2, alts:["motion","motion_plus","motioncam","combi"], price:195 },
+  motion_plus:{ name:"MotionProtect Plus", desc:"Dual-tech, pet-immune", cat:"motion", icon:"motion", colours:C2, alts:["motion","motion_plus","motioncam","combi"], price:245 },
+  motioncam:{ name:"MotionCam", desc:"Motion + photo on alarm", cat:"motion", icon:"motion", colours:C2, alts:["motion","motion_plus","motioncam","combi"], price:295 },
+  combi:{ name:"CombiProtect", desc:"Motion + glass-break", cat:"motion", icon:"motion", colours:C2, alts:["motion","motion_plus","motioncam","combi"], price:225 },
+  siren_in:{ name:"HomeSiren", desc:"Indoor siren", cat:"alarm", icon:"siren", colours:C2, alts:["siren_in"], price:165 },
+  siren_out:{ name:"StreetSiren", desc:"Outdoor siren", cat:"alarm", icon:"siren", colours:C2, alts:["siren_out","siren_dd"], price:285 },
+  siren_dd:{ name:"StreetSiren DoubleDeck", desc:"Outdoor + branding plate", cat:"alarm", icon:"siren", colours:C2, alts:["siren_out","siren_dd"], price:345 },
+  keypad:{ name:"KeyPad Plus", desc:"Touch keypad", cat:"alarm", icon:"keypad", colours:C2, alts:["keypad","keypad_ts","keypad_basic"], price:385 },
+  keypad_ts:{ name:"KeyPad TouchScreen", desc:"Touchscreen keypad", cat:"alarm", icon:"keypad", colours:C2, alts:["keypad","keypad_ts","keypad_basic"], price:445 },
+  keypad_basic:{ name:"KeyPad", desc:"Touch keypad", cat:"alarm", icon:"keypad", colours:C2, alts:["keypad","keypad_ts","keypad_basic"], price:225 },
+  fob:{ name:"SpaceControl", desc:"Key fob", cat:"alarm", icon:"fob", colours:C2, alts:["fob","button"], price:75 },
+  button:{ name:"Button", desc:"Panic button", cat:"alarm", icon:"fob", colours:C2, alts:["fob","button"], price:65 },
+  multitx:{ name:"MultiTransmitter", desc:"Connects your wired zones to Ajax", cat:"hub", icon:"hub", colours:C2, alts:["multitx"], price:330 },
+  /* CCTV — white dome cameras, 5MP or 8MP */
+  cam_5mp:{ name:"5MP Dome Camera", desc:"Crisp Full-HD+ — ideal for most homes", cat:"camera", icon:"cam", colours:C2, alts:["cam_5mp","cam_8mp"], price:360 },
+  cam_8mp:{ name:"8MP Dome Camera (4K)", desc:"Sharper detail, sees further", cat:"camera", icon:"cam", colours:C2, alts:["cam_5mp","cam_8mp"], price:430 },
+  nvr:{ name:"NVR (recorder)", desc:"Records & stores your footage", cat:"camera", icon:"nvr", colours:C2, alts:["nvr"], price:500 },
+  /* intercom */
+  doorbell:{ name:"Ajax Doorbell", desc:"Video intercom at your door", cat:"intercom", icon:"bell", colours:C2, alts:["doorbell"], price:420 },
+  /* wired conversion kit — includes hub + 1 transmitter + battery */
+  upgrade:{ name:"Wired-to-Wireless Kit (AX-WU-K1)", desc:"Hub + transmitter + battery — reuses your wiring", cat:"hub", icon:"hub", colours:C2, alts:["upgrade"], price:1398 },
+};
+const ADD = {
+  open:["door","door_plus","glass"],
+  motion:["motion","motion_plus","motioncam","combi"],
+  alarm:["siren_in","siren_out","keypad","keypad_ts","fob","button"],
+  camera:["cam_5mp","cam_8mp"],
+  intercom:["doorbell"],
+};
+const MTX_CAPACITY = 18; /* boss: confirm — MultiTransmitter wired zones per module */
+
+const MONITORING = {
+  none:{ name:"No monitoring", desc:"Self-monitored — alerts go straight to your phone via the Ajax app.", icon:"self" },
+  ip:{ name:"IP Monitoring", desc:"A monitoring centre watches your alarm over your internet connection.", icon:"link" },
+  mobile4g:{ name:"4G Monitoring", desc:"Monitored over the 4G network — keeps working if the internet drops.", icon:"monitor" },
+};
+const isCommercial = () => S.property === "shop";
+function monPrice(key){ if(key==="none") return 0; if(key==="ip") return 35; return isCommercial() ? 49 : 45; } /* $/month + GST */
+const monPriceText = key => key==="none" ? "No monthly fee" : `$${monPrice(key)} + GST / month`;
+function monKeys(){ return isCommercial() ? ["none","mobile4g"] : ["none","ip","mobile4g"]; }
+
+/* ============ state ============ */
+const DEFAULTS = {
+  mode:"build", startPicked:false, property:null,
+  motion:3, doors:0, windows:0,
+  keypad:true, siren_in:true, siren_out:true, fobs:0,
+  cctv:false, cctvCount:2, cctvRes:"cam_5mp", intercom:false,
+  zones:8,
+  monitoring:"none",
+  contact:{ first:"", last:"", email:"", phone:"", consent:false },
+  otpSent:false, otpVerified:false,
+  kit:null, i:0,
+};
+let S = JSON.parse(JSON.stringify(DEFAULTS));
+const LS_KEY = "sg_calc_v2";
+let justResumed=false, suppressPush=false, undoKit=null, uidc=1, snackTimer=null;
+const uid=()=>uidc++;
+
+const FLOWS = {
+  build:[["start","Start"],["property","Property"],["motion","Motion"],["perimeter","Perimeter"],["extras","Alarm extras"],["addons","Add CCTV / intercom"],["monitoring","Monitoring"],["review","Review"],["contact","Verify & quote"]],
+  avg:[["start","Start"],["monitoring","Monitoring"],["review","Review"],["contact","Verify & quote"]],
+  upgrade:[["start","Start"],["wired","Your wired system"],["monitoring","Monitoring"],["review","Review"],["contact","Verify & quote"]],
+};
+const flow = () => FLOWS[S.mode];
+
+function save(){ try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){} }
+function load(){ try{const d=JSON.parse(localStorage.getItem(LS_KEY)); if(d&&typeof d==="object"){Object.assign(S,d); if(S.i>0)justResumed=true; if(Array.isArray(S.kit)&&S.kit.length)uidc=Math.max(...S.kit.map(x=>x.uid||0))+1;}}catch(e){} }
+function resetAll(){ try{localStorage.removeItem(LS_KEY);}catch(e){} S=JSON.parse(JSON.stringify(DEFAULTS)); justResumed=false; }
+
+function buildKitFromWizard(){
+  const k=[]; const add=(key,qty,opt={})=>{ if(qty<1)return; k.push({uid:uid(),key,qty,colour:PRODUCTS[key].colours[0],...opt}); };
+  if(S.mode==="avg"){
+    add("hub_plus",1,{required:true}); add("keypad",1); add("motion",3); add("siren_in",1); add("siren_out",1);
+  } else if(S.mode==="upgrade"){
+    const extra=Math.max(0,Math.ceil(S.zones/MTX_CAPACITY)-1); /* AX-WU-K1 includes 1 transmitter (18 zones) */
+    add("upgrade",1,{required:true}); if(extra>0) add("multitx",extra); add("keypad",1);
+  } else {
+    add("hub_plus",1,{required:true});
+    if(S.keypad) add("keypad",1);
+    add("door",S.doors);
+    add("door",S.windows,{tag:"window"});
+    add("motion",S.motion);
+    if(S.siren_in) add("siren_in",1);
+    if(S.siren_out) add("siren_out",1);
+    add("fob",S.fobs);
+    if(S.cctv){ add(S.cctvRes,S.cctvCount); if(S.cctvCount>0) add("nvr",1); }
+    if(S.intercom) add("doorbell",1);
+  }
+  S.kit=k; save();
+}
+const itemName=it=>PRODUCTS[it.key].name+(it.tag?` (${it.tag})`:"");
+const getItem=u=>S.kit.find(i=>i.uid==u);
+const view=()=>document.getElementById("view");
+
+/* ============ partials ============ */
+function choiceCard(value,selected,iconKey,title,desc){
+  return `<button type="button" class="choice ${selected?"selected":""}" data-value="${value}">
+    <span class="choice-icon">${I[iconKey]}</span>
+    <span class="choice-body"><strong>${title}</strong>${desc?`<p>${desc}</p>`:""}</span>
+    <span class="choice-go"><span class="chev">${I.chev}</span><span class="tick">${I.tick}</span></span>
+  </button>`;
+}
+function choiceCardPriced(value,selected,iconKey,title,desc,price){
+  return `<button type="button" class="choice ${selected?"selected":""}" data-value="${value}">
+    <span class="choice-icon">${I[iconKey]}</span>
+    <span class="choice-body"><strong>${title}</strong><p>${desc}</p><p style="color:var(--sg-navy);font-weight:700;margin-top:4px">${price}</p></span>
+    <span class="choice-go"><span class="chev">${I.chev}</span><span class="tick">${I.tick}</span></span>
+  </button>`;
+}
+function counterRow(key,iconKey,title,sub){
+  return `<div class="field-card">
+    <div class="field-icon">${I[iconKey]}</div>
+    <div class="field-text"><label>${title}</label><div class="sub">${sub}</div></div>
+    <div class="stepper">
+      <button type="button" data-cnt="${key}" data-d="-1" aria-label="Decrease">−</button>
+      <span class="num" id="n-${key}">${S[key]}</span>
+      <button type="button" data-cnt="${key}" data-d="1" aria-label="Increase">+</button>
+    </div>
+  </div>`;
+}
+function toggleRow(key,iconKey,title,sub,handler){
+  return `<label class="toggle-row">
+    <div class="field-icon">${I[iconKey]}</div>
+    <div class="field-text"><label>${title}</label><div class="sub">${sub}</div></div>
+    <span class="switch"><input type="checkbox" data-${handler}="${key}" ${S[key]?"checked":""} /><span class="track"></span><span class="thumb"></span></span>
+  </label>`;
+}
+function applyDefaults(){
+  const m={ apartment:{motion:1,doors:0,windows:0,siren_out:false},
+            house1:{motion:3,doors:2,windows:0,siren_out:true},
+            house2:{motion:4,doors:2,windows:0,siren_out:true},
+            shop:{motion:2,doors:2,windows:2,siren_out:true} };
+  if(m[S.property]) Object.assign(S,m[S.property]);
+}
+function propLabel(){ return {apartment:"Apartment",house1:"House (1 storey)",house2:"House (2+ storeys)",shop:"Small shop"}[S.property]||""; }
+
+/* ============ steps ============ */
+function rStart(){
+  view().innerHTML=`
+    <h1>How would you like to start?</h1>
+    <p class="lead">Pick how you'd like to begin — we'll take it from there.</p>
+    <div class="stack" role="radiogroup">
+      ${choiceCard("build",S.startPicked&&S.mode==="build","build","Build my system","Answer a few questions for a tailored design")}
+      ${choiceCard("avg",S.startPicked&&S.mode==="avg","star","Average home package","Hub 2 Plus, keypad, 3× motion, sirens")}
+      ${choiceCard("upgrade",S.startPicked&&S.mode==="upgrade","wire","Wired alarm upgrade","Bring an old wired alarm to Ajax")}
+    </div>`;
+  view().querySelectorAll("[data-value]").forEach(b=>b.onclick=()=>{ justResumed=false; S.mode=b.dataset.value; S.startPicked=true; S.i=0; S.kit=null; suppressPush=true; render(); });
+}
+function rProperty(){
+  view().innerHTML=`
+    <h1>What type of property?</h1>
+    <p class="lead">This sets smart starting numbers — change anything next.</p>
+    <div class="stack" role="radiogroup">
+      ${choiceCard("apartment",S.property==="apartment","apt","Apartment","Unit, flat or townhouse")}
+      ${choiceCard("house1",S.property==="house1","house","House — single storey","Single-level home")}
+      ${choiceCard("house2",S.property==="house2","house2","House — 2 or more storeys","Double or multi-level")}
+      ${choiceCard("shop",S.property==="shop","shop","Small shop","Retail, office or workspace")}
+    </div>`;
+  view().querySelectorAll("[data-value]").forEach(b=>b.onclick=()=>{ S.property=b.dataset.value; applyDefaults(); suppressPush=true; render(); });
+}
+function rMotion(){
+  view().innerHTML=`
+    <h1>Indoor motion</h1>
+    <p class="lead">Your main line of defence — sensors that catch movement inside.</p>
+    ${counterRow("motion","motion","Motion sensors","Rooms and hallways to cover")}`;
+  bindCounters();
+}
+function rPerimeter(){
+  view().innerHTML=`
+    <h1>Door &amp; window sensors</h1>
+    <p class="lead">Protect the points an intruder could come in through.</p>
+    <div class="info-box"><span class="ni">${I.info}</span><div><strong>What these do:</strong> these trigger the instant a door or window opens — catching entry at the perimeter, before anyone's inside. Set any to 0 if you'd rather rely on indoor motion alone.</div></div>
+    ${counterRow("doors","door","External doors","Front, back, garage, side")}
+    ${counterRow("windows","window","Windows","Ground-floor or accessible")}`;
+  bindCounters();
+}
+function rExtras(){
+  view().innerHTML=`
+    <h1>Alarm extras</h1>
+    <p class="lead">Optional — keep what you want.</p>
+    ${toggleRow("keypad","keypad","Keypad","Arm and disarm at the door","tgl")}
+    ${toggleRow("siren_in","siren","Indoor siren","Alert inside the property","tgl")}
+    ${toggleRow("siren_out","siren","Outdoor siren","Alert outside the property","tgl")}
+    ${counterRow("fobs","fob","Key fobs","Handheld remotes")}`;
+  bindToggles(); bindCounters();
+}
+function rAddons(){
+  view().innerHTML=`
+    <h1>Add cameras or intercom?</h1>
+    <p class="lead">Round out your system — add only what you need.</p>
+    <div class="addon ${S.cctv?"open":""}">
+      ${toggleRow("cctv","cam","CCTV cameras","See and record what happens","ad")}
+      ${S.cctv?`<div class="addon-body">
+        ${counterRow("cctvCount","cam","How many cameras?","All weatherproof dome cameras")}
+        <div class="sub" style="font-weight:700;color:var(--sg-navy);margin:14px 0 8px;font-size:.9rem">Image quality</div>
+        <div class="stack">
+          ${choiceCard("cam_5mp",S.cctvRes==="cam_5mp","cam","5MP Dome","Crisp Full-HD+ — ideal for most homes")}
+          ${choiceCard("cam_8mp",S.cctvRes==="cam_8mp","cam","8MP Dome (4K)","Sharper &amp; sees further — a little more")}
+        </div>
+        <div class="info-box" style="margin:14px 0 0"><span class="ni">${I.info}</span><div>A recorder (NVR) is added automatically so footage is stored.</div></div>
+      </div>`:""}
+    </div>
+    <div class="addon ${S.intercom?"open":""}">
+      ${toggleRow("intercom","bell","Video intercom","See and speak to visitors at the door","ad")}
+    </div>`;
+  bindAddons(); bindCounters();
+}
+function rMonitoring(){
+  const keys=monKeys();
+  if(!keys.includes(S.monitoring)) S.monitoring=keys[0];
+  view().innerHTML=`
+    <h1>How should it be monitored?</h1>
+    <p class="lead">A monitoring centre watches your alarm and acts on alerts.</p>
+    <div class="stack" role="radiogroup">
+      ${keys.map(k=>choiceCardPriced(k,S.monitoring===k,MONITORING[k].icon,MONITORING[k].name,MONITORING[k].desc,monPriceText(k))).join("")}
+    </div>
+    <div class="info-box" style="margin-top:14px"><span class="ni">${I.info}</span><div>Monitoring is <strong>prepaid</strong> — billed quarterly or annually in advance. Hardware is quoted separately by email.</div></div>`;
+  view().querySelectorAll("[data-value]").forEach(b=>b.onclick=()=>{ S.monitoring=b.dataset.value; suppressPush=true; render(); });
+}
+function rWired(){
+  const extra=Math.max(0,Math.ceil(S.zones/MTX_CAPACITY)-1);
+  view().innerHTML=`
+    <h1>Your existing wired system</h1>
+    <p class="lead">We'll reuse your wiring and bring it onto Ajax.</p>
+    <div class="info-box"><span class="ni">${I.info}</span><div><strong>Why we ask:</strong> each wired detector (zone) connects into a MultiTransmitter. The AX-WU-K1 kit covers 18 zones — beyond that we add an extra module per 18.</div></div>
+    ${counterRow("zones","wire","Connected wired zones","Detectors / inputs on your current panel")}
+    <div class="svc-card" style="margin-top:4px"><div class="field-icon">${I.hub}</div><div class="bd"><strong>AX-WU-K1 kit${extra>0?` · + ${extra} extra MultiTransmitter${extra!==1?"s":""}`:" covers all your zones"}</strong><span>From ${S.zones} connected zone${S.zones!==1?"s":""}</span></div></div>`;
+  bindCounters(()=>rWired());
+}
+
+function kitItemHtml(it){
+  const p=PRODUCTS[it.key];
+  const canChange=p.alts&&p.alts.length>1;
+  const colours=p.colours.length>1?`<div class="colour-dots">${p.colours.map(c=>`<span class="colour-dot ${c} ${it.colour===c?"sel":""}" data-col="${it.uid}" data-c="${c}" title="${c}"></span>`).join("")}</div>`:"";
+  const qtyCtrl=it.required?`<span class="qty-fixed">×${it.qty}</span>`:`<div class="stepper"><button type="button" data-q="${it.uid}" data-d="-1">−</button><span class="num">${it.qty}</span><button type="button" data-q="${it.uid}" data-d="1">+</button></div>`;
+  const del=it.required?`<span style="width:26px"></span>`:`<button type="button" class="btn-del" data-del="${it.uid}" aria-label="Remove">${I.trash}</button>`;
+  return `<div class="kit-item">
+    <div class="kit-item-top"><div class="kit-thumb">${I[p.icon]}</div>
+      <div class="kit-name"><strong>${itemName(it)}</strong><span>${p.desc}</span>${colours}</div>${del}</div>
+    <div class="kit-item-bot">${canChange?`<button type="button" class="btn-text" data-chg="${it.uid}">Change model</button>`:`<span class="inc-chip">${I.check} Included</span>`}${qtyCtrl}</div>
+  </div>`;
+}
+function rReview(){
+  if(!Array.isArray(S.kit)||!S.kit.length) buildKitFromWizard();
+  const n=S.kit.reduce((s,i)=>s+i.qty,0);
+  if(!monKeys().includes(S.monitoring)) S.monitoring=monKeys()[0];
+  const mon=MONITORING[S.monitoring];
+  let secs="";
+  CAT_ORDER.forEach(cat=>{
+    const items=S.kit.filter(i=>PRODUCTS[i.key].cat===cat);
+    if(!items.length && (cat==="hub"||cat==="camera"||cat==="intercom")) return;
+    secs+=`<div class="cat-label">${CAT[cat]}</div>`;
+    if(items.length) secs+=`<div class="kit-block">${items.map(kitItemHtml).join("")}</div>`;
+    if(cat!=="hub" && cat!=="camera" && cat!=="intercom") secs+=`<button type="button" class="btn-add" data-add="${cat}">+ Add ${CAT[cat].toLowerCase()}</button>`;
+    if((cat==="camera"||cat==="intercom") && items.length) secs+=`<button type="button" class="btn-add" data-add="${cat}">+ Add ${CAT[cat].toLowerCase()}</button>`;
+  });
+  view().innerHTML=`
+    <h1>Review your system</h1>
+    <p class="lead">${n} device${n!==1?"s":""}${S.mode==="build"&&S.property?` · ${propLabel()}`:""} · tap to fine-tune</p>
+    <div class="svc-card"><div class="field-icon">${I[mon.icon]}</div><div class="bd"><strong>${mon.name}${S.monitoring!=="none"?` — ${monPriceText(S.monitoring)}`:""}</strong><span>${mon.desc}</span></div><button type="button" class="edit" id="edit-mon">Change</button></div>
+    ${secs}
+    <div class="info-box" style="margin-top:16px"><span class="ni">${I.info}</span><div>Your quote and pricing are <strong>emailed</strong> after you verify your mobile — tailored to your site, not shown here.</div></div>`;
+  bindReview();
+  document.getElementById("edit-mon").onclick=openMonitoring;
+}
+
+function rContact(){
+  const c=S.contact;
+  view().innerHTML=`
+    <h1>Verify &amp; get your quote</h1>
+    <p class="lead">We verify your mobile so only you can open the quote. Pricing arrives by email and in your portal.</p>
+    <div class="form-row">
+      <div class="form-field"><label for="f-first">First name</label><input id="f-first" autocomplete="given-name" value="${c.first}" /></div>
+      <div class="form-field"><label for="f-last">Last name</label><input id="f-last" autocomplete="family-name" value="${c.last}" /></div>
+    </div>
+    <div class="form-field"><label for="f-email">Email <span class="opt">(optional)</span></label><input id="f-email" type="email" inputmode="email" autocomplete="email" value="${c.email}" /></div>
+    <div class="form-field">
+      <label for="f-phone">Mobile number <span class="opt">(required — we verify this)</span></label>
+      <div class="phone-row">
+        <input id="f-phone" type="tel" inputmode="tel" autocomplete="tel" value="${c.phone}" ${S.otpVerified?"disabled":""} />
+        ${S.otpVerified?"":`<button type="button" class="btn-otp" id="send-otp">${S.otpSent?"Resend":"Send code"}</button>`}
+      </div>
+      ${S.otpVerified?`<div class="verified"><span class="vc">${I.check}</span> Mobile verified</div>`:""}
+      ${(!S.otpVerified&&S.otpSent)?`<div class="otp-panel">
+        <p class="ot-lead">Enter the 6-digit code we sent to <b>${c.phone||"your mobile"}</b>.</p>
+        <div class="otp-inrow"><input id="f-otp" inputmode="numeric" maxlength="6" placeholder="••••••" /><button type="button" class="btn-otp" id="verify-otp">Verify</button></div>
+        <div class="otp-meta"><span>Demo: enter any 6 digits</span><button type="button" id="resend-otp">Resend code</button></div>
+        <div class="form-err hidden" id="e-otp">Enter the 6-digit code</div>
+      </div>`:""}
+    </div>
+    <label class="consent"><input type="checkbox" id="f-consent" ${c.consent?"checked":""} /><span>I agree to be contacted about my quote and to the Privacy Policy.</span></label>
+    <div class="form-err hidden" id="e-consent">Please agree to continue</div>`;
+  const so=document.getElementById("send-otp"); if(so) so.onclick=()=>{ grabContact(); if(!/^\+?[\d ]{8,}$/.test(S.contact.phone)){ flash("Enter a valid mobile number"); return; } S.otpSent=true; suppressPush=true; render(); };
+  const vo=document.getElementById("verify-otp"); if(vo) vo.onclick=()=>{ const code=(document.getElementById("f-otp").value||"").trim(); const ok=/^\d{6}$/.test(code); document.getElementById("e-otp").classList.toggle("hidden",ok); if(!ok)return; grabContact(); S.otpVerified=true; suppressPush=true; render(); };
+  const ro=document.getElementById("resend-otp"); if(ro) ro.onclick=()=>{ snackbar("Code resent"); };
+}
+
+function rSuccess(c){
+  document.getElementById("foot").classList.add("hidden");
+  document.getElementById("prog").classList.add("hidden");
+  document.getElementById("resume").classList.add("hidden");
+  view().innerHTML=`
+    <div class="success">
+      <div class="success-icon">${I.check}</div>
+      <h1>Thank you${c.first?`, ${c.first}`:""}</h1>
+      <p class="lead">Your mobile <span class="em">${c.phone}</span> is verified. We're preparing your quote${c.email?` and emailing it to <span class="em">${c.email}</span>`:""}.</p>
+      <div class="success-card"><h2>What happens next</h2><ol>
+        <li>You'll get an SMS link to open your secure quote portal</li>
+        <li>Upload a photo at each device location</li>
+        <li>Our technician confirms your final quote &amp; pricing</li>
+        <li>Approve when you're ready — we book your install</li>
+      </ol></div>
+      <button type="button" class="btn-link" id="again">Start a new quote</button>
+    </div>`;
+  document.getElementById("again").onclick=()=>{ resetAll(); location.reload(); };
+}
+
+/* ============ kit interactions ============ */
+function bindReview(){
+  view().querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{ const it=getItem(b.dataset.q); it.qty=Math.max(1,Math.min(20,it.qty+Number(b.dataset.d))); suppressPush=true; render(); });
+  view().querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ pushUndo(); S.kit=S.kit.filter(i=>i.uid!=b.dataset.del); snackbar("Device removed"); suppressPush=true; render(); });
+  view().querySelectorAll("[data-col]").forEach(b=>b.onclick=()=>{ getItem(b.dataset.col).colour=b.dataset.c; suppressPush=true; render(); });
+  view().querySelectorAll("[data-chg]").forEach(b=>b.onclick=()=>openChange(b.dataset.chg));
+  view().querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>openAdd(b.dataset.add));
+}
+function sheetOpts(keys,sel){ return keys.map(k=>`<button type="button" class="sheet-opt ${k===sel?"on":""}" data-pick="${k}"><span class="radio-dot"></span><span class="choice-body"><strong>${PRODUCTS[k].name}</strong><p>${PRODUCTS[k].desc}</p></span></button>`).join(""); }
+function openSheet(title,sub,html,onOk){
+  const m=document.getElementById("modal");
+  m.innerHTML=`<div class="sheet-bg" id="sheetbg"><div class="sheet" role="dialog"><div class="sheet-handle"></div><h3>${title}</h3><p class="sheet-sub">${sub}</p>${html}<div class="sheet-foot"><button type="button" class="btn btn-back" id="sheet-cancel">Cancel</button><button type="button" class="btn btn-next" id="sheet-ok">Confirm</button></div></div></div>`;
+  document.getElementById("sheet-cancel").onclick=closeSheet;
+  document.getElementById("sheet-ok").onclick=onOk;
+  document.getElementById("sheetbg").onclick=ev=>{ if(ev.target.id==="sheetbg") closeSheet(); };
+}
+function closeSheet(){ document.getElementById("modal").innerHTML=""; }
+function bindPicks(setPick){ document.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{ setPick(b.dataset.pick); document.querySelectorAll(".sheet-opt").forEach(o=>o.classList.remove("on")); b.classList.add("on"); }); }
+function openChange(u){ const it=getItem(u); let pick=it.key; openSheet("Change device","Select an alternate model",sheetOpts(PRODUCTS[it.key].alts,it.key),()=>{ if(pick!==it.key){ pushUndo(); it.key=pick; if(!PRODUCTS[pick].colours.includes(it.colour)) it.colour=PRODUCTS[pick].colours[0]; snackbar("Device updated"); } closeSheet(); suppressPush=true; render(); }); bindPicks(v=>{pick=v;}); }
+function openAdd(cat){ let pick=ADD[cat][0]; openSheet("Add device",`Choose a ${CAT[cat].toLowerCase()} device`,sheetOpts(ADD[cat],pick),()=>{ pushUndo(); S.kit.push({uid:uid(),key:pick,qty:1,colour:PRODUCTS[pick].colours[0]}); snackbar("Device added"); closeSheet(); suppressPush=true; render(); }); bindPicks(v=>{pick=v;}); }
+function openMonitoring(){
+  const keys=monKeys(); let pick=keys.includes(S.monitoring)?S.monitoring:keys[0];
+  const opts=keys.map(k=>`<button type="button" class="sheet-opt ${k===pick?"on":""}" data-pick="${k}"><span class="radio-dot"></span><span class="choice-body"><strong>${MONITORING[k].name}${k!=="none"?` — ${monPriceText(k)}`:""}</strong><p>${MONITORING[k].desc}</p></span></button>`).join("");
+  openSheet("Monitoring","Choose how your alarm is monitored",opts,()=>{ S.monitoring=pick; closeSheet(); suppressPush=true; render(); });
+  bindPicks(v=>{pick=v;});
+}
+function pushUndo(){ undoKit=JSON.stringify(S.kit); }
+function hideSnack(){ clearTimeout(snackTimer); const slot=document.getElementById("snack-slot"); if(slot){ slot.innerHTML=""; slot.hidden=true; } }
+function snackbar(msg){ const slot=document.getElementById("snack-slot"); if(!slot)return; slot.hidden=false; slot.innerHTML=`<div class="snack-bar"><span>${msg}</span><button type="button" class="snack-undo">Undo</button></div>`; slot.querySelector(".snack-undo").onclick=()=>{ if(undoKit)S.kit=JSON.parse(undoKit); undoKit=null; hideSnack(); suppressPush=true; render(); }; clearTimeout(snackTimer); snackTimer=setTimeout(hideSnack,4000); }
+
+function bindCounters(after){
+  view().querySelectorAll("[data-cnt]").forEach(b=>b.onclick=()=>{
+    const k=b.dataset.cnt,d=Number(b.dataset.d);
+    const min=(k==="windows"||k==="fobs"||k==="doors")?0:1, max=(k==="fobs")?8:(k==="zones")?64:20;
+    S[k]=Math.max(min,Math.min(max,S[k]+d));
+    const el=document.getElementById("n-"+k); if(el)el.textContent=S[k];
+    const dec=b.parentElement.querySelector('[data-d="-1"]'); if(dec)dec.disabled=S[k]<=min;
+    save(); if(after)after();
+  });
+  view().querySelectorAll('[data-cnt][data-d="-1"]').forEach(b=>{ const k=b.dataset.cnt,min=(k==="windows"||k==="fobs"||k==="doors")?0:1; b.disabled=S[k]<=min; });
+}
+function bindToggles(){ view().querySelectorAll("[data-tgl]").forEach(i=>i.onchange=()=>{ S[i.dataset.tgl]=i.checked; save(); }); }
+function bindAddons(){
+  view().querySelectorAll("[data-ad]").forEach(i=>i.onchange=()=>{ S[i.dataset.ad]=i.checked; suppressPush=true; render(); });
+  view().querySelectorAll(".addon-body [data-value]").forEach(b=>b.onclick=()=>{ S.cctvRes=b.dataset.value; suppressPush=true; render(); });
+}
+
+/* ============ contact / submit ============ */
+const emailOk=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v||"").trim());
+function grabContact(){ const g=id=>{const e=document.getElementById(id);return e?(e.type==="checkbox"?e.checked:e.value.trim()):"";};
+  S.contact={ first:g("f-first")||S.contact.first, last:g("f-last")||S.contact.last, email:g("f-email")||S.contact.email, phone:g("f-phone")||S.contact.phone, consent:(document.getElementById("f-consent")?g("f-consent"):S.contact.consent) }; }
+function submit(){
+  grabContact();
+  if(!S.otpVerified){ flash("Please verify your mobile to continue"); const so=document.getElementById("send-otp"); if(so)so.focus(); return; }
+  document.getElementById("e-consent").classList.toggle("hidden",S.contact.consent);
+  if(!S.contact.consent) return;
+  const c={...S.contact}; resetAll(); rSuccess(c);
+}
+function flash(msg){ const l=view().querySelector(".lead"); if(!l)return; const o=l.textContent; l.textContent=msg; l.style.color="var(--sg-orange-deep)"; l.style.fontWeight="700"; setTimeout(()=>{l.textContent=o;l.style.color="";l.style.fontWeight="";},1800); }
+
+/* ============ shell ============ */
+function render(){
+  renderProgress(); renderResume();
+  const id=flow()[S.i][0];
+  ({start:rStart,property:rProperty,motion:rMotion,perimeter:rPerimeter,extras:rExtras,addons:rAddons,monitoring:rMonitoring,wired:rWired,review:rReview,contact:rContact}[id])();
+  document.getElementById("back").classList.toggle("hidden",S.i===0);
+  const nx=document.getElementById("next");
+  nx.innerHTML=`<span>${id==="contact"?"Send my quote":"Continue"}</span>${I.arrow}`;
+  nx.disabled=(id==="start"&&!S.startPicked)||(id==="property"&&!S.property);
+  save();
+  if(!suppressPush) history.pushState({app:true,i:S.i,mode:S.mode},"");
+  suppressPush=false; const mainEl=document.getElementById("view"); if(mainEl)mainEl.scrollTop=0;
+}
+function renderProgress(){ const f=flow(); document.getElementById("prog-step").textContent=`Step ${S.i+1} of ${f.length}`; document.getElementById("prog-label").textContent=f[S.i][1]; document.getElementById("prog-fill").style.width=`${((S.i+1)/f.length)*100}%`; }
+function renderResume(){ const r=document.getElementById("resume"); if(justResumed&&S.i>0){ r.classList.remove("hidden"); r.innerHTML=`<div class="resume-bar"><span class="rc">${I.check}</span><span>Welcome back — your progress was saved.</span><button type="button" id="ro">Start over</button></div>`; document.getElementById("ro").onclick=()=>{ resetAll(); suppressPush=true; render(); }; } else r.classList.add("hidden"); }
+function go(i){ S.i=i; render(); }
+function advance(){ if(S.i<flow().length-1) go(S.i+1); }
+function forward(){ const nx=flow()[S.i+1]; if(nx&&nx[0]==="review") buildKitFromWizard(); advance(); }
+
+document.getElementById("next").onclick=()=>{ justResumed=false; const id=flow()[S.i][0]; if(id==="contact"){submit();return;} forward(); };
+document.getElementById("back").onclick=()=>{ justResumed=false; history.back(); };
+window.addEventListener("popstate",e=>{ if(document.getElementById("modal").innerHTML){closeSheet();return;} if(e.state&&e.state.app){ S.mode=e.state.mode; S.i=e.state.i; justResumed=false; suppressPush=true; render(); } });
+
+load();
+history.replaceState({app:true,i:S.i,mode:S.mode},"");
+suppressPush=true; render();
+</script>
+</body>
+</html>

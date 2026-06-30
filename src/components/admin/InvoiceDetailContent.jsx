@@ -8,6 +8,7 @@ import { useEstimatePhotos } from "../../lib/react-query/hooks/use-estimate-phot
 import { PhotoGallery } from "./PhotoGallery";
 import { DeleteDialog } from "./DeleteDialog";
 import { DEFAULT_CURRENCY } from "../../lib/admin/constants";
+import { formatEstimateNumber } from "../../lib/admin/format-estimate-number";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Trash2, ExternalLink } from "lucide-react";
 
@@ -569,7 +570,7 @@ export const InvoiceDetailContent = memo(function InvoiceDetailContent({ invoice
                     href={`/admin/estimates/${linkedEstimate.id}`}
                     className="font-medium text-info hover:underline"
                   >
-                    {linkedEstimate.estimateNumber || linkedEstimate.id}
+                    {formatEstimateNumber(linkedEstimate.estimateNumber, { fallbackId: linkedEstimate.id }) || linkedEstimate.id}
                   </Link>
                 </div>
               </div>

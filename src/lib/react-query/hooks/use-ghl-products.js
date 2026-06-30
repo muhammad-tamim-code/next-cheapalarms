@@ -5,8 +5,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
  * Returns { ok, items:[{ id, name, sku, description, image, productType, amount, currency, hasPrices }], total, cached, source }.
  */
 async function fetchGhlProducts(search) {
-  const qs = search ? `?search=${encodeURIComponent(search)}` : "";
-  const res = await fetch(`/api/products/ghl${qs}`, {
+  const params = new URLSearchParams({ excludeCalculator: "1", limit: "500" });
+  if (search) {
+    params.set("search", search);
+  }
+  const res = await fetch(`/api/products/ghl?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

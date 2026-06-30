@@ -16,7 +16,7 @@ export {
 export { useAdminDashboard } from './use-admin-dashboard';
 export { useHealthCheck } from './use-health-check';
 export { useAdminLogs } from './use-admin-logs';
-export { useCreateInvoiceFromEstimate, useSendEstimate, useCompleteReview, useRequestChanges, useSendRevisionNotification } from './use-admin-estimate-actions';
+export { useCreateInvoiceFromEstimate, useSendEstimate, useCompleteReview, useRequestChanges, useSendRevisionNotification, useSyncEstimate } from './use-admin-estimate-actions';
 export { useSendInvoice } from './use-admin-invoice-actions';
 export { useUpdateEstimate } from './use-update-estimate';
 export { useCreateCustomQuote } from './use-create-custom-quote';

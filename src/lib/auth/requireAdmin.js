@@ -22,8 +22,14 @@ export async function requireAdmin(ctx, options = {}) {
   }
 
   if (!authContext.isAdmin) {
+    const returnUrl = resolvedUrl || req?.url || '/admin';
     if (notFound) {
-      return { notFound: true };
+      return {
+        redirect: {
+          destination: getLoginRedirect(returnUrl),
+          permanent: false,
+        },
+      };
     }
     return {
       redirect: {

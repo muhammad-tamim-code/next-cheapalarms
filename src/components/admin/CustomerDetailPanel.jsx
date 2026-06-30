@@ -9,6 +9,7 @@ import {
   User,
 } from "lucide-react";
 import { DEFAULT_CURRENCY } from "../../lib/admin/constants";
+import { formatEstimateNumber } from "../../lib/admin/format-estimate-number";
 import {
   getAvatarColorClass,
   getContactInitials,
@@ -229,7 +230,7 @@ export function CustomerDetailPanel({
                         href={`/admin/estimates?estimateId=${est.id}`}
                         className="font-medium text-neutral-900 hover:underline"
                       >
-                        {est.estimateNumber || est.id}
+                        {formatEstimateNumber(est.estimateNumber, { fallbackId: est.id }) || est.id}
                       </Link>
                       <p className="text-xs text-neutral-400">{fmtDate(est.updatedAt)}</p>
                     </div>

@@ -2,6 +2,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { Search, Trash2, Plus, X, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import AdminLayout from "../../../components/admin/layout/AdminLayout";
+import { formatEstimateNumber } from "../../../lib/admin/format-estimate-number";
 import { requireAdmin } from "../../../lib/auth/requireAdmin";
 import { EstimateDetailModal } from "../../../components/admin/EstimateDetailModal";
 import { DeleteDialog } from "../../../components/admin/DeleteDialog";
@@ -56,7 +57,7 @@ export default function EstimatesListPage({ authContext }) {
 
   // Tab counts — all from real data (backend summary + list total + trash count).
   const tabs = [
-    { value: "all",      label: "All",      count: total },
+    { value: "all",      label: "All",      count: s.allCount ?? total },
     { value: "sent",     label: "Sent",     count: summaryMetrics.sent.count },
     { value: "accepted", label: "Accepted", count: summaryMetrics.accepted.count },
     { value: "rejected", label: "Rejected", count: summaryMetrics.declined.count },
@@ -64,7 +65,7 @@ export default function EstimatesListPage({ authContext }) {
   ];
 
   const stats = [
-    { label: "Total estimates", value: total, hint: "All estimates" },
+    { label: "Total estimates", value: s.allCount ?? total, hint: "All estimates" },
     { label: "Sent",            value: summaryMetrics.sent.count, hint: "Awaiting response" },
     { label: "Accepted",        value: summaryMetrics.accepted.count, hint: "Ready for installation" },
     { label: "In trash",        value: trashCount, hint: "View trash", onClick: () => setActiveTab("trash") },
@@ -230,7 +231,7 @@ export default function EstimatesListPage({ authContext }) {
                               <input type="checkbox" className="h-4 w-4 accent-neutral-900" checked={checked} onChange={(ev) => handleSelectItem(e.id, ev.target.checked)} aria-label={`Select ${e.id}`} />
                             </td>
                             <td className="px-4 py-3">
-                              <div className="font-medium text-neutral-900">{e.estimateNumber || e.id}</div>
+                              <div className="font-medium text-neutral-900">{formatEstimateNumber(e.estimateNumber, { fallbackId: e.id }) || e.id}</div>
                               <div className="text-xs text-neutral-400">ID: {e.id}</div>
                             </td>
                             <td className="px-4 py-3">

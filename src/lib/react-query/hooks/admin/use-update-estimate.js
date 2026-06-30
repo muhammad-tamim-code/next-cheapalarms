@@ -103,9 +103,20 @@ export function useUpdateEstimate() {
       });
     },
     onSuccess: (data, variables) => {
-      // Invalidate and refetch estimate data
+      // Invalidate estimate queries to refresh
       queryClient.invalidateQueries({ queryKey: ['admin-estimate', variables.estimateId] });
       queryClient.invalidateQueries({ queryKey: ['admin-estimates'] });
+      // Also invalidate portal queries so customer sees updated estimate
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] === 'portal-status' && 
+          query.queryKey[1] === variables.estimateId,
+        refetchType: 'active',
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['portal-dashboard'],
+        refetchType: 'active',
+      });
     },
   });
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, memo } from "react";
+import { useState, useMemo, useEffect, useCallback, memo, useRef } from "react";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { DEFAULT_CURRENCY } from "../../lib/admin/constants";
+import { formatEstimateNumber } from "../../lib/admin/format-estimate-number";
 import { getEstimateItemProductImage, proxyGhlImageUrl, rewriteGhlImagesInHtml, stripHtml } from "../../lib/admin/ghl-image";
 import { parseWpFetchError } from "../../lib/admin/utils/error-handler";
 import {
@@ -31,8 +32,11 @@ import {
   useCompleteReview,
   useRequestChanges,
   useSendRevisionNotification,
+  useSyncEstimate,
   useDeleteEstimate
 } from "../../lib/react-query/hooks/admin";
+import { ViewInGhlButton } from "./ViewInGhlButton";
+import { resolveGhlLocationId } from "../../lib/admin/ghl-links";
 import { computeUIState } from "../../lib/portal/status-computer";
 import { useEstimateLineItems } from "../../hooks/admin/useEstimateLineItems";
 import { buildRevisionData, estimateWasSent } from "../../lib/admin/build-revision-data";
@@ -254,10 +258,24 @@ const EstimateTableRow = memo(function EstimateTableRow({
 EstimateTableRow.displayName = 'EstimateTableRow';
 
 export const EstimateDetailContent = memo(function EstimateDetailContent({ estimateId, locationId, onInvoiceCreated }) {
+  const effectiveLocationId = resolveGhlLocationId(locationId);
   const { data, isLoading, error, refetch } = useAdminEstimate({
     estimateId: estimateId || null,
-    locationId: locationId || undefined,
+    locationId: effectiveLocationId || undefined,
   });
+  const syncEstimateMutation = useSyncEstimate();
+  const didSyncFromGhl = useRef(null);
+
+  // Pull latest line items from GHL when opening admin detail (snapshot may be stale after GHL edits).
+  useEffect(() => {
+    if (!estimateId) return;
+    if (didSyncFromGhl.current === estimateId) return;
+    didSyncFromGhl.current = estimateId;
+    syncEstimateMutation.mutate(
+      { estimateId, locationId: effectiveLocationId || undefined },
+      { onSuccess: () => refetch() }
+    );
+  }, [estimateId, effectiveLocationId, syncEstimateMutation, refetch]);
 
   const createInvoiceMutation = useCreateInvoiceFromEstimate();
   const sendEstimateMutation = useSendEstimate();
@@ -783,7 +801,7 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
           {/* Estimate number */}
           <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Estimate number</p>
-            <p className="mt-1 truncate text-xl font-bold tracking-tight text-neutral-900">{estimate?.estimateNumber || estimateId}</p>
+            <p className="mt-1 truncate text-xl font-bold tracking-tight text-neutral-900">{formatEstimateNumber(estimate?.estimateNumber, { fallbackId: estimateId }) || estimateId}</p>
             <p className="truncate text-xs text-neutral-400">ID: {estimateId}</p>
           </div>
 
@@ -1175,17 +1193,11 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
             <h3 className="mb-3 text-sm font-semibold text-foreground">Actions</h3>
             <div className="space-y-2">
               {estimate?.id && (
-                <a
-                  href={`https://app.gohighlevel.com/v2/location/${locationId || estimate?.locationId}/estimates/${estimate?.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-border rounded-lg text-foreground hover:bg-muted transition"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                  View in GHL
-                </a>
+                <ViewInGhlButton
+                  estimateId={estimate.id}
+                  locationId={effectiveLocationId}
+                  estimate={estimate}
+                />
               )}
               {/* Single Admin Button - "Send Estimate" or "Finish" */}
               {portalMeta && (() => {
@@ -1399,8 +1411,8 @@ export const EstimateDetailContent = memo(function EstimateDetailContent({ estim
           }
         }}
         title="Delete Estimate"
-        description={`Are you sure you want to delete estimate #${estimate?.estimateNumber || estimateId}? This action cannot be undone.`}
-        itemName={`estimate #${estimate?.estimateNumber || estimateId}`}
+        description={`Are you sure you want to delete estimate #${formatEstimateNumber(estimate?.estimateNumber, { fallbackId: estimateId }) || estimateId}? This action cannot be undone.`}
+        itemName={`estimate #${formatEstimateNumber(estimate?.estimateNumber, { fallbackId: estimateId }) || estimateId}`}
         isLoading={deleteEstimateMutation.isPending}
         showScopeSelection={true}
         scope={deleteScope}

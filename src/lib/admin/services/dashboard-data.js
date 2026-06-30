@@ -9,40 +9,31 @@
 import { wpFetch } from "../../wp.server";
 import { cookieHeader } from "../utils/request-utils";
 import { formatTimeAgo } from "../../utils/time-utils";
+import { formatEstimateNumber } from "../format-estimate-number";
 
 /**
- * Fetches product counts from WordPress API
+ * Fetches GHL catalog product count from WordPress API
  * @param {object} req - Next.js request object
- * @returns {Promise<{base: number, addons: number, packages: number}>}
+ * @returns {Promise<number>}
  */
-async function fetchProductCounts(req) {
+async function fetchProductCount(req) {
   const headers = cookieHeader(req);
 
-  const safeCount = async (path) => {
-    try {
-      const data = await wpFetch(path, { headers });
-      return Array.isArray(data) ? data.length : Array.isArray(data?.items) ? data.items.length : 0;
-    } catch {
-      return 0;
-    }
-  };
-
-  const [baseCount, addonsCount, packagesCount] = await Promise.all([
-    safeCount("/ca/v1/products/base"),
-    safeCount("/ca/v1/products/addons"),
-    safeCount("/ca/v1/products/packages"),
-  ]);
-
-  return { base: baseCount, addons: addonsCount, packages: packagesCount };
+  try {
+    const data = await wpFetch("/ca/v1/products/ghl?limit=1&excludeCalculator=1", { headers });
+    return typeof data?.total === "number" ? data.total : Array.isArray(data?.items) ? data.items.length : 0;
+  } catch {
+    return 0;
+  }
 }
 
 /**
  * Calculates statistics from estimates data
  * @param {Array} estimates - Array of estimate objects
- * @param {object} productCounts - Product counts object
+ * @param {number} productCount - GHL catalog product count
  * @returns {Array} Array of stat objects
  */
-function calculateStats(estimates, productCounts) {
+function calculateStats(estimates, productCount) {
   const totalEstimates = estimates.length;
   const pendingEstimates = estimates.filter(
     (e) => e.status && !["accepted", "approved"].includes(e.status.toLowerCase())
@@ -69,8 +60,8 @@ function calculateStats(estimates, productCounts) {
     },
     {
       title: "Products",
-      value: `${productCounts.base}/${productCounts.addons}/${productCounts.packages}`,
-      hint: "base/addons/packages",
+      value: productCount.toString(),
+      hint: "GHL catalog",
     },
   ];
 }
@@ -126,7 +117,7 @@ function generateActivity(estimates) {
       return {
         title: `Estimate ${statusLabel}`,
         description: estimate.estimateNumber
-          ? `#${estimate.estimateNumber}`
+          ? `#${formatEstimateNumber(estimate.estimateNumber, { fallbackId: estimate.id })}`
           : estimate.email
           ? `for ${estimate.email}`
           : `ID: ${estimate.id}`,
@@ -144,15 +135,15 @@ export async function getDashboardData(req) {
   try {
     const headers = cookieHeader(req);
     // Parallelize admin estimates + product counts (Phase 0: fewer sequential WP round-trips)
-    const [estimatesData, productCounts] = await Promise.all([
+    const [estimatesData, productCount] = await Promise.all([
       wpFetch(`/ca/v1/admin/estimates?page=1&pageSize=100`, { headers }),
-      fetchProductCounts(req),
+      fetchProductCount(req),
     ]);
 
     const estimates = estimatesData?.items ?? [];
 
     return {
-      stats: calculateStats(estimates, productCounts),
+      stats: calculateStats(estimates, productCount),
       alerts: generateAlerts(estimates),
       activity: generateActivity(estimates),
     };

@@ -13,6 +13,7 @@ import { EmptyTrashDialog } from "./EmptyTrashDialog";
 import { useRestoreEstimate, useBulkRestoreEstimates, useEmptyTrash } from "../../lib/react-query/hooks/admin";
 import { formatTimeAgo } from "../../lib/utils/time-utils";
 import { DEFAULT_CURRENCY } from "../../lib/admin/constants";
+import { formatEstimateNumber } from "../../lib/admin/format-estimate-number";
 
 /**
  * Trash view component for displaying soft-deleted estimates
@@ -280,12 +281,12 @@ export function TrashView({
                         <div className="flex items-center gap-2">
                           <Trash2 className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium text-sm text-foreground">
-                            {item.estimateNumber || item.id || "ESTIMATE"}
+                            {formatEstimateNumber(item.estimateNumber, { fallbackId: item.id }) || item.id || "ESTIMATE"}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                        {item.estimateNumber || item.id}
+                        {formatEstimateNumber(item.estimateNumber, { fallbackId: item.id }) || item.id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
@@ -371,11 +372,11 @@ export function TrashView({
                     <div className="flex items-center gap-2 mb-1">
                       <Trash2 className="h-4 w-4 text-muted-foreground" />
                       <h3 className="font-semibold text-foreground text-sm">
-                        {item.estimateNumber || item.id || "ESTIMATE"}
+                        {formatEstimateNumber(item.estimateNumber, { fallbackId: item.id }) || item.id || "ESTIMATE"}
                       </h3>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      #{item.estimateNumber || item.id}
+                      #{formatEstimateNumber(item.estimateNumber, { fallbackId: item.id }) || item.id}
                     </p>
                   </div>
                 </div>

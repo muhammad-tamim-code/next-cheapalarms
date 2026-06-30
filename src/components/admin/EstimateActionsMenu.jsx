@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { MoreVertical, Eye, Trash2, RotateCcw, ExternalLink, Link as LinkIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import {
@@ -7,6 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { buildGhlEstimateEditUrl, resolveGhlLocationId } from "../../lib/admin/ghl-links";
 
 /**
  * Actions menu for estimates
@@ -22,9 +24,7 @@ export function EstimateActionsMenu({
   linkedInvoiceId,
 }) {
   // Construct URLs
-  const ghlUrl = locationId && estimateId 
-    ? `https://app.gohighlevel.com/v2/location/${locationId}/estimates/${estimateId}`
-    : null;
+  const ghlUrl = buildGhlEstimateEditUrl(estimateId, resolveGhlLocationId(locationId));
   
   const portalUrl = estimateId 
     ? `/portal?estimateId=${estimateId}`
@@ -68,7 +68,7 @@ export function EstimateActionsMenu({
                   window.open(ghlUrl, '_blank', 'noopener,noreferrer');
                 }}
               >
-                <ExternalLink className="mr-2 h-4 w-4" />
+                <Image src="/brand/ghl-logo.png" alt="" width={16} height={16} className="mr-2 shrink-0 rounded-sm" />
                 View in GHL
               </DropdownMenuItem>
             )}

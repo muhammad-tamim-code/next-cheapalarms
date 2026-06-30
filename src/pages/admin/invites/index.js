@@ -12,6 +12,7 @@ import { requireAdmin } from "../../../lib/auth/requireAdmin";
 import { useAdminEstimates } from "../../../lib/react-query/hooks/admin/use-admin-estimates";
 import { useSendEstimate } from "../../../lib/react-query/hooks/admin/use-admin-estimate-actions";
 import { RefreshCw } from "lucide-react";
+import { formatEstimateNumber } from "../../../lib/admin/format-estimate-number";
 
 /** Portal-status values that indicate an invite has actually been sent. */
 const SENT_STATUSES = new Set(["sent", "accepted", "rejected"]);
@@ -163,7 +164,7 @@ export default function AdminInvites({ authContext }) {
                               href={`/admin/estimates/${est.id}`}
                               className="font-mono text-xs underline-offset-2 hover:underline"
                             >
-                              #{est.estimateNumber || est.id}
+                              #{formatEstimateNumber(est.estimateNumber, { fallbackId: est.id }) || est.id}
                             </Link>
                           </td>
                           <td className="px-3 py-2">

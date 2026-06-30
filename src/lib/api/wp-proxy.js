@@ -29,11 +29,32 @@ export function getWpBase() {
  * @param {Response} response - Fetch Response
  * @returns {Promise<{ ok: boolean, body: unknown, status: number }>} Parsed body and status; body may be null on parse failure
  */
+function isHostingBotWall(text) {
+  return (
+    text.includes("Bot Verification") ||
+    text.includes("lsrecaptcha") ||
+    text.includes(".lsrecap/recaptcha")
+  );
+}
+
 export async function parseWpResponse(response) {
   const status = response.status;
   const text = await response.text().catch(() => "");
   if (!text) {
     return { ok: response.ok, body: { ok: false, err: "Empty response from WordPress API" }, status };
+  }
+  if (isHostingBotWall(text)) {
+    return {
+      ok: false,
+      body: {
+        ok: false,
+        err:
+          "WordPress hosting blocked the server request (LiteSpeed/Hostinger bot protection). " +
+          "Allow /wp-json/ through the firewall or disable bot verification for REST API paths.",
+        code: "hosting_bot_wall",
+      },
+      status: status || 403,
+    };
   }
   try {
     const body = JSON.parse(text);

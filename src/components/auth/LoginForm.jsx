@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { Lock, User, Mail } from "lucide-react";
-import { sanitizeReturnUrl } from "../../lib/auth/auth-utils";
+import { resolvePostLoginDestination } from "../../lib/auth/auth-utils";
 import { BRAND } from "../../config/brand";
 
 function AuthField({ type, name, label, icon: Icon, value, onChange, autoComplete, required }) {
@@ -31,7 +31,7 @@ function AuthField({ type, name, label, icon: Icon, value, onChange, autoComplet
   );
 }
 
-export function LoginForm() {
+export function LoginForm({ showSwitchHint = false }) {
   const router = useRouter();
   const [mode, setMode] = useState("login");
   const [remember, setRemember] = useState(false);
@@ -81,8 +81,12 @@ export function LoginForm() {
         throw new Error(result.err ?? "Login failed");
       }
 
-      const returnUrl = sanitizeReturnUrl(router.query.from);
-      window.location.replace(returnUrl);
+      const destination = resolvePostLoginDestination(result.user ?? {}, router.query.from);
+      if (!destination) {
+        throw new Error("This account does not have admin access. Use your staff login email.");
+      }
+
+      window.location.replace(destination);
     } catch (err) {
       setError(err.message || "An unexpected error occurred. Please try again.");
       setLoading(false);
@@ -176,6 +180,12 @@ export function LoginForm() {
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">User login</p>
         <h1 className="sr-only">Sign in to {BRAND.name}</h1>
       </header>
+
+      {showSwitchHint && (
+        <div className="rounded-xl border border-info/30 bg-info-bg p-3 text-sm text-foreground" role="status">
+          You&apos;re signed in as a customer in this browser. Enter your staff email below to open the admin dashboard.
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-error/40 bg-error-bg p-3 text-sm text-error" role="alert">

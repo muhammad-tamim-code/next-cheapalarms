@@ -6,6 +6,7 @@ import { normaliseStatus } from "../components/portal/utils/status-normalizer";
 import { formatAddress } from "../components/portal/utils/portal-utils";
 import { apiFetch } from "../lib/api/apiFetch";
 import { DEFAULT_CURRENCY } from "../lib/admin/constants";
+import { formatEstimateNumber } from "../lib/admin/format-estimate-number";
 
 /**
  * Custom hook to manage all portal state and data fetching
@@ -672,7 +673,7 @@ export function usePortalState({ initialStatus, initialError, initialEstimateId,
       taxTotal: estimateData?.ok ? (estimateData.taxTotal || 0) : 0,
       total: estimateData?.ok ? (estimateData.total || 0) : (view?.quote?.total || 0),
       label: estimateData?.ok 
-        ? (estimateData.title || `Estimate #${estimateData.estimateNumber || estimateId}`)
+        ? (estimateData.title || `Estimate #${formatEstimateNumber(estimateData.estimateNumber, { fallbackId: estimateId }) || estimateId}`)
         : `Estimate #${view?.quote?.number || estimateId}`,
       revision: view?.revision || null, // Include revision data for RevisionBanner
       revisionHistory: view?.revisionHistory || [], // Full revision history for edit timeline

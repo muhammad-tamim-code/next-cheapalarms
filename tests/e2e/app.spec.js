@@ -19,10 +19,10 @@ test.describe("app", () => {
     await expect(page.getByRole("button", { name: /sign in/i })).toBeVisible(VISIBLE);
   });
 
-  test("root URL redirects to /quote", async ({ page }) => {
+  test("root URL redirects to /login", async ({ page }) => {
     await page.goto("/", NAV);
-    await expect(page).toHaveURL(/\/quote/, { timeout: 30000 });
-    await expect(page.getByText(/request a quote/i).first()).toBeVisible(VISIBLE);
+    await expect(page).toHaveURL(/\/login/, { timeout: 30000 });
+    await expect(page.getByPlaceholder("Username")).toBeVisible(VISIBLE);
   });
 
   test("quote request page shows form", async ({ page }) => {

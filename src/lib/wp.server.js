@@ -75,6 +75,16 @@ async function wpFetch(path, options = {}) {
 
     if (!response.ok) {
       const errorText = await response.text();
+      if (
+        errorText.includes("Bot Verification") ||
+        errorText.includes("lsrecaptcha") ||
+        errorText.includes(".lsrecap/recaptcha")
+      ) {
+        throw new Error(
+          "WP error 403 Forbidden: WordPress hosting blocked this request (LiteSpeed/Hostinger bot protection). " +
+            "Allow /wp-json/ through the firewall or disable bot verification for REST API paths."
+        );
+      }
       throw new Error(
         `WP error ${response.status} ${response.statusText}: ${errorText}`
       );

@@ -1,11 +1,12 @@
 import { createWpProxyHandler } from "../../../lib/api/wp-proxy";
 
 /**
- * Proxy: GET /api/products/ghl?search=&refresh=1
- * Lists the GHL product catalog (cached server-side in the WP plugin).
+ * Proxy: GET|POST /api/products/ghl
+ * GET — list GHL catalog (local snapshots).
+ * POST — create product in GHL + local snapshot.
  */
 export default createWpProxyHandler("/ca/v1/products/ghl", {
-  allowedMethods: ["GET"],
+  allowedMethods: ["GET", "POST"],
   // Building the catalog on a cache miss makes a couple of GHL calls; give it room.
-  timeout: 30000,
+  timeout: 60000,
 });

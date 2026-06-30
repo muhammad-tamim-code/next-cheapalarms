@@ -1,22 +1,26 @@
 /**
  * Normalizes portal status data from API to consistent format
  */
+import { formatEstimateNumber } from "../../../lib/admin/format-estimate-number";
+
 export function normaliseStatus(status) {
   if (!status) return null;
   const quote = status.quote ?? {};
   const account = status.account ?? {};
   const installation = status.installation ?? {};
   const photos = status.photos ?? {};
+  const estimateId = status.estimateId ?? null;
+  const quoteNumber = formatEstimateNumber(quote.number, { fallbackId: estimateId ?? "" });
 
   return {
-    estimateId: status.estimateId ?? quote.number ?? null,
+    estimateId: estimateId ?? quote.number ?? null,
     locationId: status.locationId ?? null,
     nextStep: status.nextStep ?? installation.message ?? "We'll keep you posted.",
     invoice: status.invoice ?? null,
     quote: {
       status: quote.status ?? "sent", // Portal uses: sent, accepted, rejected
       label: quote.statusLabel ?? "Sent", // Default label matches backend
-      number: quote.number ?? status.estimateId ?? "—",
+      number: quoteNumber || estimateId || "—",
       acceptedAt: quote.acceptedAt ?? null,
       // Preserve acceptance and revision fields for status computer
       acceptance_enabled: quote.acceptance_enabled ?? false,

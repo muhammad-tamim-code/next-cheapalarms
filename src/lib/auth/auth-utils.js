@@ -18,3 +18,30 @@ export function sanitizeReturnUrl(url, fallback = "/dashboard") {
   return trimmed;
 }
 
+/** True when an existing session may use the post-login return path. */
+export function canAccessReturnUrl(authContext, from) {
+  if (!authContext) return false;
+  const returnUrl = sanitizeReturnUrl(from, "/dashboard");
+  if (returnUrl.startsWith("/admin")) {
+    return authContext.isAdmin === true;
+  }
+  return true;
+}
+
+/**
+ * Resolve where to send the user after login (or when login page skips the form).
+ * @param {{ isAdmin?: boolean, is_admin?: boolean }} user
+ */
+export function resolvePostLoginDestination(user, from) {
+  const isAdmin = user?.isAdmin === true || user?.is_admin === true;
+  const returnUrl = sanitizeReturnUrl(from, "/dashboard");
+
+  if (returnUrl.startsWith("/admin")) {
+    return isAdmin ? returnUrl : null;
+  }
+  if (returnUrl === "/dashboard") {
+    return isAdmin ? "/admin" : "/portal";
+  }
+  return returnUrl;
+}
+

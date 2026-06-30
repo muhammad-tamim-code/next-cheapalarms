@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { BRAND } from "../../config/brand";
+import { submitQuoteRequest } from "../../lib/api/submitQuoteRequest";
 
 /**
  * Seed items used for every quote request submitted from this page.
@@ -103,22 +104,7 @@ export default function MinimalQuotePage() {
         locationId: process.env.NEXT_PUBLIC_GHL_LOCATION_ID || null,
       };
 
-      const res = await fetch("/api/quote-request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json?.ok) {
-        const message =
-          json?.error ||
-          json?.err ||
-          (json?.code === "duplicate_request"
-            ? "A quote was just requested with this email — check your inbox."
-            : "Something went wrong submitting your quote.");
-        throw new Error(message);
-      }
+      const json = await submitQuoteRequest(payload);
 
       const params = new URLSearchParams();
       if (json.estimateId) params.set("estimateId", json.estimateId);

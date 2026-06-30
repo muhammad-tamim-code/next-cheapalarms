@@ -9,6 +9,7 @@ import {
 } from "../react-query/hooks/admin";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { DEFAULT_PAGE_SIZE, DEFAULT_CURRENCY } from "./constants";
+import { formatEstimateNumber } from "./format-estimate-number";
 
 /**
  * Filter/table state and data for the admin estimates list page.
@@ -36,20 +37,18 @@ export function useEstimatesListState() {
   const estimateIdFromQuery = router.query.estimateId;
   const selectedEstimateId = estimateIdFromQuery || null;
 
-  const portalStatusFilter =
-    activeTab === "all" || activeTab === "trash" || activeTab === "invoiced" ? "" : activeTab;
-
   const deleteEstimateMutation = useDeleteEstimate();
   const bulkDeleteMutation = useBulkDeleteEstimates();
 
+  // Fetch up to 100 estimates per request; status tabs filter + paginate client-side.
+  const fetchPageSize = 100;
   const { data, isLoading, error, refetch } = useAdminEstimates({
     search: search || undefined,
-    portalStatus: portalStatusFilter || undefined,
     workflowStatus: workflowStatusFilter || undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
-    page,
-    pageSize,
+    page: 1,
+    pageSize: fetchPageSize,
     enabled: activeTab !== "trash",
   });
 
@@ -74,12 +73,32 @@ export function useEstimatesListState() {
     if (activeTab === "invoiced") {
       return allEstimates.filter((e) => e.linkedInvoiceId);
     }
+    if (activeTab === "sent") {
+      return allEstimates.filter((e) => e.portalStatus === "sent" || e.ghlStatus === "sent");
+    }
+    if (activeTab === "accepted") {
+      return allEstimates.filter((e) => e.portalStatus === "accepted");
+    }
+    if (activeTab === "rejected") {
+      return allEstimates.filter((e) => e.portalStatus === "rejected");
+    }
     return allEstimates;
   }, [data?.items, activeTab]);
 
-  const estimates = filteredEstimates;
-  const total = activeTab === "invoiced" ? estimates.length : (data?.total ?? 0);
-  const totalPages = pageSize > 0 ? Math.ceil(total / pageSize) : 1;
+  const estimates = useMemo(() => {
+    const offset = (page - 1) * pageSize;
+    return filteredEstimates.slice(offset, offset + pageSize);
+  }, [filteredEstimates, page, pageSize]);
+
+  const allCount = data?.total ?? filteredEstimates.length;
+  const total =
+    activeTab === "all" ? allCount : filteredEstimates.length;
+  const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab);
+    setPage(1);
+  }, []);
 
   useEffect(() => {
     setSelectedIds(new Set());
@@ -130,7 +149,7 @@ export function useEstimatesListState() {
     const mod = await import("xlsx");
     const XLSX = mod.default ?? mod;
     const worksheetData = items.map((est) => ({
-      "Estimate Number": est.estimateNumber || est.id || "",
+      "Estimate Number": formatEstimateNumber(est.estimateNumber, { fallbackId: est.id || "" }) || est.id || "",
       Title: est.title || "ESTIMATE",
       "Customer Name": est.contactName || "",
       Email: est.contactEmail || "",
@@ -184,12 +203,12 @@ export function useEstimatesListState() {
         },
       };
     }
-    const sent = estimates.filter(
+    const sent = (data?.items ?? []).filter(
       (e) => e.portalStatus === "sent" || e.ghlStatus === "sent"
     );
-    const accepted = estimates.filter((e) => e.portalStatus === "accepted");
-    const declined = estimates.filter((e) => e.portalStatus === "rejected");
-    const invoiced = estimates.filter((e) => e.linkedInvoiceId);
+    const accepted = (data?.items ?? []).filter((e) => e.portalStatus === "accepted");
+    const declined = (data?.items ?? []).filter((e) => e.portalStatus === "rejected");
+    const invoiced = (data?.items ?? []).filter((e) => e.linkedInvoiceId);
     return {
       sent: {
         count: sent.length,
@@ -208,7 +227,7 @@ export function useEstimatesListState() {
         total: invoiced.reduce((sum, e) => sum + (e.total || 0), 0),
       },
     };
-  }, [data?.summary, estimates]);
+  }, [data?.summary, data?.items]);
 
   const handleRowClick = useCallback(
     (estimateId) => {
@@ -302,7 +321,7 @@ export function useEstimatesListState() {
     endDate,
     setEndDate,
     activeTab,
-    setActiveTab,
+    setActiveTab: handleTabChange,
     workflowStatusFilter,
     setWorkflowStatusFilter,
     page,
@@ -337,6 +356,7 @@ export function useEstimatesListState() {
     summaryMetrics,
     statusTabs,
     trashCount,
+    allCount,
     handleSearchChange: useCallback((value) => {
       setSearch(value);
       setPage(1);

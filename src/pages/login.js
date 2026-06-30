@@ -2,13 +2,13 @@ import Head from "next/head";
 import { LoginCard } from "../components/auth/LoginCard";
 import { LoginForm } from "../components/auth/LoginForm";
 import { getAuthContext } from "../lib/auth/getAuthContext";
-import { sanitizeReturnUrl } from "../lib/auth/auth-utils";
+import { canAccessReturnUrl, resolvePostLoginDestination } from "../lib/auth/auth-utils";
 import { BRAND } from "../config/brand";
 
 /**
  * Login Page — split card (welcome panel + form)
  */
-export default function LoginPage() {
+export default function LoginPage({ showSwitchHint = false }) {
   return (
     <>
       <Head>
@@ -25,7 +25,7 @@ export default function LoginPage() {
         />
 
         <LoginCard>
-          <LoginForm />
+          <LoginForm showSwitchHint={showSwitchHint} />
         </LoginCard>
       </main>
     </>
@@ -34,16 +34,27 @@ export default function LoginPage() {
 
 export async function getServerSideProps(ctx) {
   const authContext = await getAuthContext(ctx.req);
+  const forceSwitch =
+    ctx.query.switch === "1" ||
+    ctx.query.switch === "true" ||
+    ctx.query.switch === "yes";
+  const from = typeof ctx.query.from === "string" ? ctx.query.from : undefined;
 
-  if (authContext) {
-    const returnUrl = sanitizeReturnUrl(ctx.query.from);
-    return {
-      redirect: {
-        destination: returnUrl,
-        permanent: false,
-      },
-    };
+  if (authContext && !forceSwitch && canAccessReturnUrl(authContext, from)) {
+    const destination = resolvePostLoginDestination(authContext, from);
+    if (destination) {
+      return {
+        redirect: {
+          destination,
+          permanent: false,
+        },
+      };
+    }
   }
 
-  return { props: {} };
+  return {
+    props: {
+      showSwitchHint: Boolean(authContext && !forceSwitch && from?.startsWith("/admin")),
+    },
+  };
 }
